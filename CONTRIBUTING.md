@@ -77,7 +77,7 @@ To open a fork and create a pull request, please follow these steps:
 5. Clone your fork locally:
    ```bash
    git clone https://github.com/<your-username>/pyRES.git
-   cd pyRESeconomics
+   cd pyRES
    
 6. Set the original repo as upstream:
    ```
