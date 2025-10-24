@@ -58,8 +58,8 @@ yield assessment and for the evaluation of economic indicators. Finally, the res
 and exported using pandas and Matplotlib, generating CSV files for further processing and PNG 
 visualizations as shown in \autoref{fig:example}.
 
-pyRES is developed in the open on GitHub ( manca) and each
-release is archived on Zenodo (manca).
+pyRES is developed in the open on GitHub ([@fidgit]) and each
+release is archived on Zenodo ([![DOI](https://zenodo.org/badge/1082548694.svg)](https://doi.org/10.5281/zenodo.17435948)).
 
 # Statement of need
 
