@@ -268,6 +268,9 @@ Some icons used in this project are designed by The Noun Project and are license
 ---
 
 # How to cite pyRES
+
+[![DOI](https://zenodo.org/badge/1082548694.svg)](https://doi.org/10.5281/zenodo.17435948)
+
 If you use pyRES in a published work, please cite:
 
 - [Corsini, Alessandro, et al. "Challenges of renewable energy communities on small Mediterranean islands: A case study on Ponza island." Renewable Energy 215 (2023): 118986.](https://doi.org/10.1016/j.ecmx.2024.100696)
