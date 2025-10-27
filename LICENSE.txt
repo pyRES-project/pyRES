@@ -1,6 +1,6 @@
 BSD 3-ClauseLicense
 
-Copyright (c) <2025> <Isabella Pizzuti,Giovanni Delibra/Dipartimento di Ingegneria meccanica e Aerospazioanle/La Sapienza>.
+Copyright (c) <2025> <Isabella Pizzuti,Giovanni Delibra/Dipartimento di Ingegneria meccanica e Aerospaziale/La Sapienza>.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
