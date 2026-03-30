@@ -104,3 +104,6 @@ google-api-python-client~=2.182.0
 prometheus_client~=0.23.1
 jupyter_server_terminals~=0.5.3
 Werkzeug~=3.1.3
+# Testing dependencies
+pytest>=7.0
+pytest-cov>=4.0

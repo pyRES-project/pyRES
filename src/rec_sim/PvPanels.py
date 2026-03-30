@@ -434,9 +434,9 @@ class PvPanels(System):
         :return:
             fill factor: DataSeries or array
         """
-        # Calcolo vettorizzato: evita divisioni per zero con np.where
+        # Calcolo vettorizzato: evita divisioni per zero con np.divide + where
         denominator = voc * isc
-        ff = np.where(denominator > 0, (vmp * imp) / denominator, 0.0)
+        ff = np.divide(vmp * imp, denominator, out=np.zeros_like(vmp), where=denominator > 0)
         return ff
 
     # [MIGLIORAMENTO #8] Vettorizzazione: compute_efficiency usa operazioni numpy
@@ -451,7 +451,7 @@ class PvPanels(System):
         denominator = I_total * self.area * self.n_series * self.n_parallel
         if self.mode_mppt > 0:
             # Calcolo vettorizzato dell'efficienza al punto di massima potenza
-            eff = np.where(denominator > 0, p_max / denominator, 0.0)
+            eff = np.divide(p_max, denominator, out=np.zeros_like(p_max), where=denominator > 0)
         else:
             eff = np.zeros(len(p_max))
         return eff
