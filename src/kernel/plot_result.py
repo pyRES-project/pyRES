@@ -40,7 +40,14 @@ def to_df(en_perf_evolution, timeline):
 
 
 
-def plot(simulation,all_components):
+def plot(simulation, all_components, output_dir='Output'):
+    """
+    Generate seasonal and monthly bar plots for prosumers and RECs.
+
+    :param simulation: dict with 'timeline', 'start_date', 'time_step'
+    :param all_components: dict with 'prosumers', 'recs', etc.
+    :param output_dir: str --> directory where plots are saved (default: 'Output')
+    """
     timeline=simulation['timeline']
     dt = datetime.strptime(simulation['start_date'], '%d-%m-%Y')
     time_step=simulation['time_step']
@@ -78,7 +85,7 @@ def plot(simulation,all_components):
                 plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d-%m'))
                 plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))  # max 10 tick
                 plt.xticks(rotation=45, ha="right")
-                plt.savefig('Output/{0}_{1}_{2}.png'.format(prosumer.id, carrier, period))
+                plt.savefig('{0}/{1}_{2}_{3}.png'.format(output_dir, prosumer.id, carrier, period))
                 plt.show()
                 plt.close()
 
@@ -99,7 +106,7 @@ def plot(simulation,all_components):
                 plt.xticks(x_pos, fontsize=20)
                 plt.xlabel('Month', fontsize=20)
                 plt.ylabel('Energy [MWh]', fontsize=20)
-                plt.savefig('Output/{0}_{1}_bar.png'.format(prosumer.id, carrier))
+                plt.savefig('{0}/{1}_{2}_bar.png'.format(output_dir, prosumer.id, carrier))
                 plt.show()
                 plt.close()
 
@@ -133,7 +140,7 @@ def plot(simulation,all_components):
                 plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d-%m'))
                 plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))  # max 10 tick
                 plt.xticks(rotation=45, ha="right")
-                plt.savefig('Output/{0}_{1}_{2}.png'.format(rec.id, carrier, period))
+                plt.savefig('{0}/{1}_{2}_{3}.png'.format(output_dir, rec.id, carrier, period))
                 plt.show()
                 plt.close()
 
@@ -153,7 +160,7 @@ def plot(simulation,all_components):
                 plt.ylabel('Energy [MWh]', fontsize=20)
                 plt.xticks(x_pos, fontsize=20)
                 plt.xlabel('Month', fontsize=20)
-                plt.savefig('Output/{0}_{1}_bar.png'.format(rec.id, carrier))
+                plt.savefig('{0}/{1}_{2}_bar.png'.format(output_dir, rec.id, carrier))
                 plt.show()
                 plt.close()
 

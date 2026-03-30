@@ -68,21 +68,13 @@ class Prosumer:
                 else:
                     p_tot += 0
 
-            self_cons = np.zeros(len(d_tot))
-            surplus = np.zeros(len(d_tot))
-            unmet = np.zeros(len(d_tot))
-            for dt in range(len(d_tot)):
-                p = p_tot[dt]
-                d = d_tot[dt]
-                if p >= d:
-                    surplus[dt] = p - d
-                    unmet[dt] = 0
-                    self_cons[dt] = d
-
-                else:
-                    surplus[dt] = 0
-                    unmet[dt] = d - p
-                    self_cons[dt] = p
+            # [FIX #5] Vettorizzazione: il loop Python esplicito su 35.040 timestep
+            # è sostituito da operazioni NumPy vettoriali, ~100x più veloci.
+            p_tot = np.asarray(p_tot, dtype=float)
+            d_tot = np.asarray(d_tot, dtype=float)
+            self_cons = np.minimum(p_tot, d_tot)
+            surplus = np.maximum(0, p_tot - d_tot)
+            unmet = np.maximum(0, d_tot - p_tot)
 
             self.en_perf_evolution[carrier] = {}
             self.en_perf_evolution[carrier]['prod'] = p_tot
@@ -91,13 +83,8 @@ class Prosumer:
             self.en_perf_evolution[carrier]['surplus'] = surplus
             self.en_perf_evolution[carrier]['unmet'] = unmet
 
-            # [MIGLIORAMENTO #8] BESS multi-carrier: rimosso il vincolo hardcoded
-            # "if carrier == 'electricity'" che impediva l'uso di accumulo per
-            # carrier diversi (es. accumulo termico, idrogeno).
-            # Ora il BESS viene attivato per qualsiasi carrier, purché ci siano
-            # batterie associate al prosumer con quel carrier nei loro carriers.
+            # [MIGLIORAMENTO #8] BESS multi-carrier
             if self.bess:
-                # Filtra solo le batterie compatibili con il carrier corrente
                 carrier_bess = [b for b in self.bess if carrier in b.carriers]
                 if carrier_bess:
                     self.en_perf_evolution[carrier] = {}

@@ -32,6 +32,21 @@ class System():
             - dur: a list representing the start and end of the revenue duration.
             - e.g. {'item1': {'unit': 50, 'rev_unit': 4, 'dur': [1, 2]}} from year1 to year2 an additional revenue of 200 € will be applied.
         """
+
+        # [FIX #5] Validazione dei parametri comuni a tutti i sistemi energetici.
+        # Questi vincoli catturano errori di configurazione che altrimenti
+        # produrrebbero risultati silenziosamente errati.
+        if cap < 0:
+            raise ValueError(f"System '{id}': capacity must be >= 0, got {cap}")
+        if cap_cost < 0:
+            raise ValueError(f"System '{id}': cap_cost must be >= 0, got {cap_cost}")
+        if opex_cost < 0:
+            raise ValueError(f"System '{id}': opex_cost must be >= 0, got {opex_cost}")
+        if not isinstance(inc_start_end, (list, tuple)) or len(inc_start_end) != 2:
+            raise ValueError(f"System '{id}': inc_start_end must be a list of 2 elements [start, end]")
+        if inc_start_end[0] > inc_start_end[1] and inc_start_end[1] != 0:
+            raise ValueError(f"System '{id}': inc_start_end[0] must be <= inc_start_end[1], got {inc_start_end}")
+
         self.id = id
         self.carriers = carriers
         self.cap_cost_unit = cap_cost
@@ -44,5 +59,3 @@ class System():
         self.other_cost = other_cost
         self.other_rev = other_rev
         self.en_perf_evolution = {}
-
-

@@ -82,6 +82,35 @@ class Bess(System):
         :param min_energy_threshold: float --> minimum energy threshold as fraction of capacity to avoid micro-cycles
         """
 
+        # [FIX #5] Validazione dei parametri BESS.
+        # Previene stati iniziali impossibili e parametri non fisici.
+        if n_series <= 0 or n_parallel <= 0:
+            raise ValueError(f"BESS '{id}': n_series and n_parallel must be > 0, got {n_series}, {n_parallel}")
+        if cap_module <= 0:
+            raise ValueError(f"BESS '{id}': cap_module must be > 0, got {cap_module}")
+        if soc_min < 0 or soc_max > 1:
+            raise ValueError(f"BESS '{id}': soc_min must be >= 0 and soc_max <= 1, got [{soc_min}, {soc_max}]")
+        if soc_min >= soc_max:
+            raise ValueError(f"BESS '{id}': soc_min ({soc_min}) must be < soc_max ({soc_max})")
+        if not soc_min <= soc_in <= soc_max:
+            raise ValueError(f"BESS '{id}': soc_in ({soc_in}) must be in [soc_min={soc_min}, soc_max={soc_max}]")
+        if not 0 < eta_charge <= 1:
+            raise ValueError(f"BESS '{id}': eta_charge must be in (0, 1], got {eta_charge}")
+        if not 0 < eta_discharge <= 1:
+            raise ValueError(f"BESS '{id}': eta_discharge must be in (0, 1], got {eta_discharge}")
+        if v <= 0:
+            raise ValueError(f"BESS '{id}': rated voltage must be > 0, got {v}")
+        if i_max <= 0:
+            raise ValueError(f"BESS '{id}': i_max must be > 0, got {i_max}")
+        if i_min < 0:
+            raise ValueError(f"BESS '{id}': i_min must be >= 0, got {i_min}")
+        if lifetime_years <= 0:
+            raise ValueError(f"BESS '{id}': lifetime_years must be > 0, got {lifetime_years}")
+        if not 0 <= annual_capacity_fade < 1:
+            raise ValueError(f"BESS '{id}': annual_capacity_fade must be in [0, 1), got {annual_capacity_fade}")
+        if c_rate_max is not None and c_rate_max <= 0:
+            raise ValueError(f"BESS '{id}': c_rate_max must be > 0 or None, got {c_rate_max}")
+
         self.id = id
         self.soc_in = soc_in
         self.soc_max = soc_max

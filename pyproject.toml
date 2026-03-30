@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyRES"
+version = "0.2.0"
+description = "Python simulator for Renewable Energy Communities (RECs)"
+readme = "README.md"
+license = {text = "BSD-3-Clause"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Isabella Pizzuti"},
+    {name = "Giovanni Delibra"},
+]
+keywords = ["renewable energy", "energy community", "photovoltaic", "battery", "simulation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pvlib>=0.10",
+    "PyYAML>=6.0",
+    "numpy-financial",
+    "matplotlib>=3.7",
+    "scipy>=1.10",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+notebook = [
+    "jupyter",
+    "notebook",
+    "ipykernel",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: Unit tests for individual classes and methods",
+    "integration: Integration tests that combine multiple components",
+    "slow: Tests that require network access (PVGIS) or long computation",
+]

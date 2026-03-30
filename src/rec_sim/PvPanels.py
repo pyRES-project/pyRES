@@ -80,6 +80,34 @@ class PvPanels(System):
         :param annual_degradation: float --> annual power degradation rate (0-1, typical 0.004-0.007 for c-Si)
         """
 
+        # [FIX #5] Validazione dei parametri elettrici del modulo PV.
+        # Questi vincoli prevengono errori di configurazione che causerebbero
+        # divisioni per zero o logaritmi di numeri negativi nel calcolo di Rs.
+        if n_series <= 0 or n_parallel <= 0:
+            raise ValueError(f"PV '{id}': n_series and n_parallel must be > 0, got {n_series}, {n_parallel}")
+        if imppt_ref >= isc_ref:
+            raise ValueError(f"PV '{id}': imppt_ref ({imppt_ref}) must be < isc_ref ({isc_ref})")
+        if vmppt_ref >= voc_ref:
+            raise ValueError(f"PV '{id}': vmppt_ref ({vmppt_ref}) must be < voc_ref ({voc_ref})")
+        if area <= 0:
+            raise ValueError(f"PV '{id}': area must be > 0, got {area}")
+        if I_tot_ref <= 0:
+            raise ValueError(f"PV '{id}': I_tot_ref must be > 0, got {I_tot_ref}")
+        if ser_cell <= 0:
+            raise ValueError(f"PV '{id}': ser_cell must be > 0, got {ser_cell}")
+        if not 0 < dc_ac_efficiency <= 1:
+            raise ValueError(f"PV '{id}': dc_ac_efficiency must be in (0, 1], got {dc_ac_efficiency}")
+        if not 0 <= mismatch_loss < 1:
+            raise ValueError(f"PV '{id}': mismatch_loss must be in [0, 1), got {mismatch_loss}")
+        if not 0 <= wiring_loss < 1:
+            raise ValueError(f"PV '{id}': wiring_loss must be in [0, 1), got {wiring_loss}")
+        if not 0 <= soiling_loss < 1:
+            raise ValueError(f"PV '{id}': soiling_loss must be in [0, 1), got {soiling_loss}")
+        if not 0 <= annual_degradation < 1:
+            raise ValueError(f"PV '{id}': annual_degradation must be in [0, 1), got {annual_degradation}")
+        if eg <= 0:
+            raise ValueError(f"PV '{id}': bandgap energy (eg) must be > 0, got {eg}")
+
         self.mode_mppt = mode_mppt
         self.isc_ref = isc_ref
         self.voc_ref = voc_ref

@@ -40,15 +40,8 @@ class Rec:
             n_prosumers: int
             n_consumers: int
         """
-        if self.prosumers:
-            n_prosumers = len(self.prosumers)
-        else:
-            n_prosumers = 0
-        if self.consumers:
-            n_consumers = len(self.consumers)
-        else:
-            n_consumers = 0
-
+        n_prosumers = len(self.prosumers) if self.prosumers else 0
+        n_consumers = len(self.consumers) if self.consumers else 0
         n_members = n_prosumers + n_consumers
 
         return n_members, n_prosumers, n_consumers
@@ -102,32 +95,36 @@ class Rec:
 
             for plant in self.rec_systems:
                 if carrier in plant.carriers:
-                    p_rec= plant.en_perf_evolution[carrier]['prod']
+                    p_rec += plant.en_perf_evolution[carrier]['prod']
 
+            # [FIX #1] Conversione di p_rec ad array PRIMA dell'uso nelle somme.
+            # Nel codice originale, quando rec_systems era vuoto p_rec restava scalare (0)
+            # e veniva usato nelle somme per p_tot e p_net prima di essere convertito,
+            # funzionando per caso grazie al broadcasting di NumPy ma in modo fragile.
+            # Ora determiniamo la lunghezza della serie temporale e convertiamo subito.
+            ref_len = None
+            if not np.isscalar(p_prosumers):
+                ref_len = len(p_prosumers)
+            elif not np.isscalar(d_consumers):
+                ref_len = len(d_consumers)
+            elif not np.isscalar(d_prosumers):
+                ref_len = len(d_prosumers)
+
+            if np.isscalar(p_rec) and ref_len is not None:
+                p_rec = np.zeros(ref_len)
 
             d_tot = d_prosumers + d_consumers
-            d_net = deficit_prosumers+d_consumers
-            p_tot = p_prosumers+p_rec
-            p_net = surplus_prosumers+p_rec
+            d_net = deficit_prosumers + d_consumers
+            p_tot = p_prosumers + p_rec
+            p_net = surplus_prosumers + p_rec
 
-
-            if np.isscalar(p_rec) and p_rec == 0:
-                p_rec = np.zeros(len(p_tot))
-            shared = np.zeros(len(p_tot))
-            surplus_rec =np.zeros(len(p_tot))
-            deficit_rec = np.zeros(len(p_tot))
-
-            for dt in range(len(p_tot)):
-                p = p_net[dt]
-                d = d_net[dt]
-                if p >= d:
-                    surplus_rec[dt] = p - d
-                    deficit_rec[dt] = 0
-                    shared[dt] = d
-                else:
-                    surplus_rec[dt] = 0
-                    deficit_rec[dt] = d - p
-                    shared[dt] = p
+            # [FIX #6] Vettorizzazione: il loop Python esplicito è sostituito
+            # da operazioni NumPy vettoriali per il calcolo di shared/surplus/deficit.
+            p_net = np.asarray(p_net, dtype=float)
+            d_net = np.asarray(d_net, dtype=float)
+            shared = np.minimum(p_net, d_net)
+            surplus_rec = np.maximum(0, p_net - d_net)
+            deficit_rec = np.maximum(0, d_net - p_net)
 
             self.en_perf_evolution[carrier] = {}
             self.en_perf_evolution[carrier]['prod'] = p_tot
@@ -142,11 +139,7 @@ class Rec:
             self.en_perf_evolution[carrier]['surplus'] = surplus_rec
             self.en_perf_evolution[carrier]['unmet'] = deficit_rec
 
-            # [MIGLIORAMENTO #8] BESS multi-carrier: rimosso il vincolo hardcoded
-            # "if carrier == 'electricity'" che impediva l'uso di accumulo comunitario
-            # per carrier diversi (es. accumulo termico condiviso nella CER).
-            # Ora il BESS della REC viene attivato per qualsiasi carrier, filtrando
-            # solo le batterie compatibili con il carrier corrente.
+            # [MIGLIORAMENTO #8] BESS multi-carrier
             if self.rec_bess:
                 carrier_bess = [b for b in self.rec_bess if carrier in b.carriers]
                 if carrier_bess:
