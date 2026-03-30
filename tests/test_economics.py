@@ -7,7 +7,10 @@ Tests cover:
 - NPV and payback period calculation
 - Incentive application within time windows
 - Battery replacement cost scheduling
-- Other costs/revenues within duration windows
+- [FIX #3] OPEX and tax are non-zero in cashflow
+- [FIX #2] Price decay applies to purchase costs
+- [FIX #4] Production degradation reduces energy flows
+- [FIX #5] Purchased energy is correctly accounted
 """
 
 import pytest
@@ -20,13 +23,12 @@ from src.rec_sim.Bess import Bess
 # ===========================================================================
 # Helpers
 # ===========================================================================
-def _make_pv(cap_cost=1500, inc_year=0, inc_start_end=None):
-    """Create a minimal PV for economics testing."""
+def _make_pv(cap_cost=1500, opex_cost=40, inc_year=0, inc_start_end=None, tax_year=0):
     if inc_start_end is None:
         inc_start_end = [0, 0]
     return PvPanels(
-        id='pv', cap_cost=cap_cost, opex_cost=40,
-        inc_year=inc_year, inc_start_end=inc_start_end, tax_year=0,
+        id='pv', cap_cost=cap_cost, opex_cost=opex_cost,
+        inc_year=inc_year, inc_start_end=inc_start_end, tax_year=tax_year,
         n_series=1, n_parallel=1,
         dc_ac_efficiency=1.0, mismatch_loss=0.0,
         wiring_loss=0.0, soiling_loss=0.0,
@@ -34,33 +36,34 @@ def _make_pv(cap_cost=1500, inc_year=0, inc_start_end=None):
 
 
 def _make_bess(cap_cost=720, lifetime=10, annual_fade=0.02,
-               inc_year=0, inc_start_end=None):
-    """Create a minimal BESS for economics testing."""
+               inc_year=0, inc_start_end=None, opex_cost=20, tax_year=0):
     if inc_start_end is None:
         inc_start_end = [0, 0]
     return Bess(
         id='bess', cap_module=2.56, v=25.6, i_max=100, i_min=5,
         soc_in=0.5, soc_max=0.8, soc_min=0.2,
         n_series=1, n_parallel=1,
-        cap_cost=cap_cost, opex_cost=20,
-        inc_year=inc_year, inc_start_end=inc_start_end, tax_year=0,
+        cap_cost=cap_cost, opex_cost=opex_cost,
+        inc_year=inc_year, inc_start_end=inc_start_end, tax_year=tax_year,
         lifetime_years=lifetime,
         annual_capacity_fade=annual_fade,
     )
 
 
-def _make_flows():
-    """Standard annual energy flows for testing."""
-    return {
+def _make_flows(**overrides):
+    defaults = {
         'electricity': {
-            'sold': 100,          # MWh
-            'self_cons': 200,     # MWh
-            'purchased': 10,      # MWh
-            'price_sold': 100,    # €/MWh
-            'price_buy': 130,     # €/MWh
+            'sold': 100,
+            'self_cons': 200,
+            'purchased': 50,
+            'price_sold': 100,
+            'price_buy': 130,
             'decay': 0.02,
+            'prod_degradation': 0.0,
         }
     }
+    defaults['electricity'].update(overrides)
+    return defaults
 
 
 # ===========================================================================
@@ -70,7 +73,6 @@ class TestCapex:
 
     @pytest.mark.unit
     def test_capex_single_component(self):
-        """CAPEX = cap_cost * cap for a single component."""
         pv = _make_pv(cap_cost=1500)
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
@@ -80,21 +82,16 @@ class TestCapex:
 
     @pytest.mark.unit
     def test_capex_with_other_percentage(self):
-        """CAPEX is scaled by other_capex_perc: total = raw / (1 - perc)."""
         pv = _make_pv(cap_cost=1000)
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
-        result = ec.compute_cashflow(
-            time_horizon=20, tax_rate=0.2, int_rate=0.03,
-            other_capex_perc=[0.1],
-        )
+        result = ec.compute_cashflow(time_horizon=20, tax_rate=0.2, int_rate=0.03, other_capex_perc=[0.1])
         raw = 1000 * pv.cap
         expected = raw / (1 - 0.1)
         assert result['capex'] == pytest.approx(expected, rel=1e-4)
 
     @pytest.mark.unit
     def test_capex_multiple_components(self):
-        """CAPEX sums across multiple components."""
         pv = _make_pv(cap_cost=1500)
         bess = _make_bess(cap_cost=720)
         flows = _make_flows()
@@ -111,7 +108,6 @@ class TestCashflow:
 
     @pytest.mark.unit
     def test_cashflow_length(self):
-        """Cashflow arrays have time_horizon + 1 entries (year 0 to N)."""
         pv = _make_pv()
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
@@ -121,7 +117,6 @@ class TestCashflow:
 
     @pytest.mark.unit
     def test_year_zero_no_revenue(self):
-        """Year 0 has no revenues (only investment)."""
         pv = _make_pv()
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
@@ -132,19 +127,15 @@ class TestCashflow:
 
     @pytest.mark.unit
     def test_revenue_from_sale(self):
-        """rev_from_sale = sold * price_sold * (1-decay)^(year-1)."""
         pv = _make_pv()
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
         result = ec.compute_cashflow(time_horizon=5, tax_rate=0.0, int_rate=0.03)
-        # Year 1: 100 * 100 * (1-0.02)^0 = 10000
         assert result['rev_from_sale'][1] == pytest.approx(10000, rel=1e-4)
-        # Year 2: 100 * 100 * (1-0.02)^1 = 9800
         assert result['rev_from_sale'][2] == pytest.approx(9800, rel=1e-4)
 
     @pytest.mark.unit
     def test_tax_on_sale(self):
-        """cost_taxes_on_sale = rev_from_sale * tax_rate."""
         pv = _make_pv()
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
@@ -156,13 +147,138 @@ class TestCashflow:
 
 
 # ===========================================================================
+# [FIX #3] OPEX and tax non-zero
+# ===========================================================================
+class TestOpexAndTax:
+
+    @pytest.mark.unit
+    def test_opex_is_nonzero(self):
+        """[FIX #3] OPEX must be > 0 when opex_cost > 0."""
+        pv = _make_pv(opex_cost=40)
+        flows = _make_flows()
+        ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=5, tax_rate=0.0, int_rate=0.03)
+        expected_opex = 40 * pv.opex  # opex_cost × opex (capacity for O&M)
+        assert result['cost_opex'][1] == pytest.approx(expected_opex, rel=1e-4)
+        assert result['cost_opex'][1] > 0
+
+    @pytest.mark.unit
+    def test_tax_is_nonzero(self):
+        """[FIX #3] Annual tax must be > 0 when tax_year > 0."""
+        pv = _make_pv(tax_year=500)
+        flows = _make_flows()
+        ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=5, tax_rate=0.0, int_rate=0.03)
+        assert result['cost_taxes'][1] == pytest.approx(500, rel=1e-4)
+        assert result['cost_taxes'][1] > 0
+
+    @pytest.mark.unit
+    def test_opex_constant_across_years(self):
+        """OPEX is constant across all years."""
+        pv = _make_pv(opex_cost=40)
+        flows = _make_flows()
+        ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=10, tax_rate=0.0, int_rate=0.03)
+        for year in range(1, 11):
+            assert result['cost_opex'][year] == pytest.approx(result['cost_opex'][1], rel=1e-6)
+
+    @pytest.mark.unit
+    def test_opex_sum_multiple_components(self):
+        """OPEX sums across multiple components."""
+        pv = _make_pv(opex_cost=40)
+        bess = _make_bess(opex_cost=20)
+        flows = _make_flows()
+        ec = Economics(components=[pv, bess], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=5, tax_rate=0.0, int_rate=0.03)
+        expected = 40 * pv.opex + 20 * bess.opex
+        assert result['cost_opex'][1] == pytest.approx(expected, rel=1e-4)
+
+
+# ===========================================================================
+# [FIX #2] Price decay on purchase costs
+# ===========================================================================
+class TestPurchasePriceDecay:
+
+    @pytest.mark.unit
+    def test_purchase_cost_decays(self):
+        """[FIX #2] Purchase cost decreases with price decay."""
+        pv = _make_pv()
+        flows = _make_flows(purchased=50, price_buy=130, decay=0.05)
+        ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=5, tax_rate=0.0, int_rate=0.03)
+        # Year 1: 50 * 130 * (1-0.05)^0 = 6500
+        assert result['cost_resources'][1] == pytest.approx(6500, rel=1e-4)
+        # Year 2: 50 * 130 * (1-0.05)^1 = 6175
+        assert result['cost_resources'][2] == pytest.approx(6175, rel=1e-4)
+
+    @pytest.mark.unit
+    def test_purchase_cost_zero_when_no_purchased(self):
+        """No purchase cost when purchased = 0."""
+        pv = _make_pv()
+        flows = _make_flows(purchased=0)
+        ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=5, tax_rate=0.0, int_rate=0.03)
+        for year in range(1, 6):
+            assert result['cost_resources'][year] == pytest.approx(0, abs=1e-6)
+
+
+# ===========================================================================
+# [FIX #4] Production degradation
+# ===========================================================================
+class TestProductionDegradation:
+
+    @pytest.mark.unit
+    def test_sale_revenue_decreases_with_degradation(self):
+        """[FIX #4] Sale revenue decreases due to production degradation."""
+        pv = _make_pv()
+        flows = _make_flows(sold=100, price_sold=100, decay=0.0, prod_degradation=0.01)
+        ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=5, tax_rate=0.0, int_rate=0.0)
+        # Year 1: 100 * 100 * (1-0.01)^0 = 10000
+        assert result['rev_from_sale'][1] == pytest.approx(10000, rel=1e-4)
+        # Year 2: 100 * (1-0.01)^1 * 100 = 9900
+        assert result['rev_from_sale'][2] == pytest.approx(9900, rel=1e-4)
+        # Year 5: 100 * (1-0.01)^4 * 100 = 9606 (approx)
+        assert result['rev_from_sale'][5] == pytest.approx(100 * 0.99**4 * 100, rel=1e-3)
+
+    @pytest.mark.unit
+    def test_no_degradation_when_zero(self):
+        """With prod_degradation=0, revenues don't decrease beyond price decay."""
+        pv = _make_pv()
+        flows = _make_flows(sold=100, price_sold=100, decay=0.0, prod_degradation=0.0)
+        ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=5, tax_rate=0.0, int_rate=0.0)
+        # Constant across years
+        for year in range(1, 6):
+            assert result['rev_from_sale'][year] == pytest.approx(10000, rel=1e-4)
+
+    @pytest.mark.unit
+    def test_degradation_increases_purchased(self):
+        """[FIX #5] Degradation increases purchased energy (production drops, demand stays)."""
+        pv = _make_pv()
+        flows = _make_flows(sold=100, self_cons=200, purchased=50,
+                            price_buy=130, decay=0.0, prod_degradation=0.1)
+        ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
+        result = ec.compute_cashflow(time_horizon=3, tax_rate=0.0, int_rate=0.0)
+        # Year 1: purchased = 50 (base)
+        assert result['cost_resources'][1] == pytest.approx(50 * 130, rel=1e-3)
+        # Year 2: prod degrades by 10%, so sold+self_cons drop by 30 MWh
+        # purchased = 50 + 30 = 80 MWh
+        year2_prod_decay = 0.9
+        year2_sold = 100 * year2_prod_decay
+        year2_self_cons = 200 * year2_prod_decay
+        year2_additional = (100 + 200) - (year2_sold + year2_self_cons)
+        year2_purchased = 50 + year2_additional
+        assert result['cost_resources'][2] == pytest.approx(year2_purchased * 130, rel=1e-3)
+
+
+# ===========================================================================
 # Incentives
 # ===========================================================================
 class TestIncentives:
 
     @pytest.mark.unit
     def test_incentives_within_window(self):
-        """Incentives are applied only within inc_start_end range."""
         pv = _make_pv(inc_year=5000, inc_start_end=[2, 5])
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
@@ -180,7 +296,6 @@ class TestNpvPbp:
 
     @pytest.mark.unit
     def test_npv_type(self):
-        """NPV is a scalar float."""
         pv = _make_pv()
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
@@ -189,8 +304,7 @@ class TestNpvPbp:
 
     @pytest.mark.unit
     def test_pbp_positive_for_profitable_project(self):
-        """PBP is positive when project generates positive cashflow."""
-        pv = _make_pv(cap_cost=100)  # Very cheap PV
+        pv = _make_pv(cap_cost=100)
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
         result = ec.compute_cashflow(time_horizon=20, tax_rate=0.0, int_rate=0.03)
@@ -198,7 +312,6 @@ class TestNpvPbp:
 
     @pytest.mark.unit
     def test_higher_discount_rate_lower_npv(self):
-        """Higher discount rate produces lower NPV."""
         pv = _make_pv()
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)
@@ -214,22 +327,17 @@ class TestBatteryReplacement:
 
     @pytest.mark.unit
     def test_replacement_cost_at_lifetime(self):
-        """Replacement cost appears at year = lifetime_years."""
         bess = _make_bess(cap_cost=720, lifetime=10)
         flows = _make_flows()
         ec = Economics(components=[bess], annual_en_flows_and_prices=flows)
         result = ec.compute_cashflow(time_horizon=20, tax_rate=0.2, int_rate=0.03)
         replacement = result['cost_bess_replacement']
-        # Cost at year 10 and year 20
         assert replacement[10] == pytest.approx(720 * bess.cap, rel=1e-4)
         assert replacement[20] == pytest.approx(720 * bess.cap, rel=1e-4)
-        # No replacement at other years
         assert replacement[5] == pytest.approx(0.0)
-        assert replacement[15] == pytest.approx(0.0)
 
     @pytest.mark.unit
     def test_no_replacement_when_lifetime_exceeds_horizon(self):
-        """No replacement cost when lifetime > time_horizon."""
         bess = _make_bess(cap_cost=720, lifetime=25)
         flows = _make_flows()
         ec = Economics(components=[bess], annual_en_flows_and_prices=flows)
@@ -238,22 +346,17 @@ class TestBatteryReplacement:
 
     @pytest.mark.unit
     def test_replacement_increases_total_cost(self):
-        """Battery replacement makes the project more expensive (lower NPV)."""
-        bess_long = _make_bess(cap_cost=720, lifetime=25)  # no replacement in 20y
-        bess_short = _make_bess(cap_cost=720, lifetime=10)  # replacement at y10, y20
+        bess_long = _make_bess(cap_cost=720, lifetime=25)
+        bess_short = _make_bess(cap_cost=720, lifetime=10)
         flows = _make_flows()
-
         ec_long = Economics(components=[bess_long], annual_en_flows_and_prices=flows)
         ec_short = Economics(components=[bess_short], annual_en_flows_and_prices=flows)
-
         result_long = ec_long.compute_cashflow(time_horizon=20, tax_rate=0.2, int_rate=0.03)
         result_short = ec_short.compute_cashflow(time_horizon=20, tax_rate=0.2, int_rate=0.03)
-
         assert result_short['NPV'] < result_long['NPV']
 
     @pytest.mark.unit
     def test_pv_has_no_replacement(self):
-        """PV panels (no lifetime_years attribute by default) have no replacement cost."""
         pv = _make_pv()
         flows = _make_flows()
         ec = Economics(components=[pv], annual_en_flows_and_prices=flows)

@@ -127,7 +127,7 @@ prosumers_dict = {
                   "economics": {
                       "tax_rate": 0.2,
                       "int_rate": 0.03, 'carriers_and_costs': {
-                          'electricity': {'decay': 0.02, 'price_buy': 130, 'price_sold': 104}},
+                          'electricity': {'decay': 0.02, 'price_buy': 130, 'price_sold': 104, 'prod_degradation': 0.005}},
                       'other_capex_perc': [0]
 
                   }},
@@ -137,7 +137,7 @@ prosumers_dict = {
                   "economics": {
                       "tax_rate": 0.2,
                       "int_rate": 0.03, 'carriers_and_costs': {
-                          'electricity': {'decay': 0.02, 'price_buy': 130, 'price_sold': 104}},
+                          'electricity': {'decay': 0.02, 'price_buy': 130, 'price_sold': 104, 'prod_degradation': 0.005}},
                       'other_capex_perc': [0.02]
 
                   }}

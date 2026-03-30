@@ -353,13 +353,54 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
 
             flows_and_prices = {}
             for carrier in tech['carriers']:
+                ep = pros_obj.en_perf_evolution[carrier]
+                carrier_costs = econ['carriers_and_costs'][carrier]
+
+                # [FIX #5] Calcolo dell'energia acquistata dalla rete (purchased):
+                # nel codice originale era hardcoded a 0, ignorando completamente il
+                # costo dell'energia non coperta dalla produzione. L'energia acquistata
+                # corrisponde all'unmet demand (domanda non soddisfatta dalla produzione
+                # e dal BESS), convertita da kW a MWh.
+                purchased = float(np.sum(ep["unmet"])) / 1000 * time_step
+
+                # [FIX #1] Supporto profili prezzi orari (time-of-use):
+                # se nella config sono presenti 'price_sold_profile' o 'price_buy_profile'
+                # come array orari/sub-orari, i ricavi/costi vengono calcolati come somma
+                # pesata (energia × prezzo a ciascun timestep) anziché come prodotto
+                # semplice (energia annua × prezzo medio fisso).
+                # Se i profili non sono presenti, si usano i prezzi fissi (retrocompatibile).
+                if 'price_sold_profile' in carrier_costs:
+                    # Prezzo di vendita variabile nel tempo: ricavo = Σ(surplus_t × price_t × time_step)
+                    price_sold_profile = np.array(carrier_costs['price_sold_profile'])
+                    sold_revenue = float(np.sum(ep["surplus"] * price_sold_profile)) * time_step / 1000
+                    # Per Economics usiamo il ricavo diretto e un prezzo medio ponderato
+                    sold_mwh = float(np.sum(ep["surplus"])) / 1000 * time_step
+                    avg_price_sold = sold_revenue / sold_mwh if sold_mwh > 0 else carrier_costs.get('price_sold', 0)
+                else:
+                    sold_mwh = float(np.sum(ep["surplus"])) / 1000 * time_step
+                    avg_price_sold = carrier_costs['price_sold']
+
+                if 'price_buy_profile' in carrier_costs:
+                    # Prezzo di acquisto variabile: costo = Σ(unmet_t × price_t × time_step)
+                    price_buy_profile = np.array(carrier_costs['price_buy_profile'])
+                    # Calcolo del risparmio da autoconsumo pesato per prezzo orario
+                    self_cons_savings = float(np.sum(ep["self_cons"] * price_buy_profile)) * time_step / 1000
+                    self_cons_mwh = float(np.sum(ep["self_cons"])) / 1000 * time_step
+                    avg_price_buy = self_cons_savings / self_cons_mwh if self_cons_mwh > 0 else carrier_costs.get('price_buy', 0)
+                else:
+                    self_cons_mwh = float(np.sum(ep["self_cons"])) / 1000 * time_step
+                    avg_price_buy = carrier_costs['price_buy']
+
                 flows_and_prices[carrier] = {
-                    "sold": sum(pros_obj.en_perf_evolution[carrier]["surplus"]) / 1000 * time_step,
-                    "self_cons": sum(pros_obj.en_perf_evolution[carrier]["self_cons"]) / 1000 * time_step,
-                    "purchased": 0,
-                    "price_sold": econ['carriers_and_costs'][carrier]['price_sold'],
-                    "price_buy": econ['carriers_and_costs'][carrier]['price_buy'],
-                    "decay": econ['carriers_and_costs'][carrier]['decay']
+                    "sold": sold_mwh,
+                    "self_cons": self_cons_mwh,
+                    "purchased": purchased,
+                    "price_sold": avg_price_sold,
+                    "price_buy": avg_price_buy,
+                    "decay": carrier_costs['decay'],
+                    # [FIX #4] Tasso di degradazione della produzione PV passato a Economics
+                    # per ridurre i flussi energetici anno dopo anno.
+                    "prod_degradation": carrier_costs.get('prod_degradation', 0.0),
                 }
 
             pros_obj.economic_performance(
@@ -395,13 +436,39 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
 
             flows_and_prices = {}
             for carrier in tech['carriers']:
+                ep = rec_obj.en_perf_evolution[carrier]
+                carrier_costs = econ['carriers_and_costs'][carrier]
+
+                # [FIX #5] Energia acquistata dalla rete a livello REC
+                purchased = float(np.sum(ep["unmet"])) / 1000 * time_step
+
+                # [FIX #1] Supporto profili prezzi orari per REC
+                if 'price_sold_profile' in carrier_costs:
+                    price_sold_profile = np.array(carrier_costs['price_sold_profile'])
+                    sold_mwh = float(np.sum(ep["prod_rec"])) / 1000 * time_step
+                    sold_revenue = float(np.sum(ep["prod_rec"] * price_sold_profile)) * time_step / 1000
+                    avg_price_sold = sold_revenue / sold_mwh if sold_mwh > 0 else carrier_costs.get('price_sold', 0)
+                else:
+                    sold_mwh = float(np.sum(ep["prod_rec"])) / 1000 * time_step
+                    avg_price_sold = carrier_costs['price_sold']
+
+                if 'price_buy_profile' in carrier_costs:
+                    price_buy_profile = np.array(carrier_costs['price_buy_profile'])
+                    shared_mwh = float(np.sum(ep["shared"])) / 1000 * time_step
+                    shared_savings = float(np.sum(ep["shared"] * price_buy_profile)) * time_step / 1000
+                    avg_price_buy = shared_savings / shared_mwh if shared_mwh > 0 else carrier_costs.get('price_buy', 0)
+                else:
+                    shared_mwh = float(np.sum(ep["shared"])) / 1000 * time_step
+                    avg_price_buy = carrier_costs['price_buy']
+
                 flows_and_prices[carrier] = {
-                    "sold": sum(rec_obj.en_perf_evolution[carrier]["prod_rec"]) / 1000 * time_step,
-                    "self_cons": sum(rec_obj.en_perf_evolution[carrier]["shared"]) / 1000 * time_step,
-                    "purchased": 0,
-                    "price_sold": econ['carriers_and_costs'][carrier]['price_sold'],
-                    "price_buy": econ['carriers_and_costs'][carrier]['price_buy'],
-                    "decay": econ['carriers_and_costs'][carrier]['decay']
+                    "sold": sold_mwh,
+                    "self_cons": shared_mwh,
+                    "purchased": purchased,
+                    "price_sold": avg_price_sold,
+                    "price_buy": avg_price_buy,
+                    "decay": carrier_costs['decay'],
+                    "prod_degradation": carrier_costs.get('prod_degradation', 0.0),
                 }
 
             rec_obj.economic_performance(

@@ -126,12 +126,13 @@ class TestProsumerIntegration:
         # Economic performance
         flows = {
             'electricity': {
-                'sold': np.sum(ep['surplus']) / 1000 * TIME_STEP_15MIN,
-                'self_cons': np.sum(ep['self_cons']) / 1000 * TIME_STEP_15MIN,
-                'purchased': 0,
+                'sold': float(np.sum(ep['surplus'])) / 1000 * TIME_STEP_15MIN,
+                'self_cons': float(np.sum(ep['self_cons'])) / 1000 * TIME_STEP_15MIN,
+                'purchased': float(np.sum(ep['unmet'])) / 1000 * TIME_STEP_15MIN,
                 'price_sold': 104,
                 'price_buy': 130,
                 'decay': 0.02,
+                'prod_degradation': 0.005,
             }
         }
         ec = pros.economic_performance(
@@ -142,6 +143,11 @@ class TestProsumerIntegration:
         assert 'pbp' in ec
         assert 'capex' in ec
         assert ec['capex'] > 0
+        # [FIX #3] OPEX must be non-zero
+        assert ec['cost_opex'][1] > 0
+        # [FIX #5] Purchased energy cost must be non-zero when there is unmet demand
+        if float(np.sum(ep['unmet'])) > 0:
+            assert ec['cost_resources'][1] > 0
 
     @pytest.mark.integration
     def test_prosumer_no_bess_pipeline(self):
@@ -233,12 +239,13 @@ class TestRecIntegration:
         # Economic performance
         flows = {
             'electricity': {
-                'sold': np.sum(ep['prod_rec']) / 1000 * TIME_STEP_15MIN,
-                'self_cons': np.sum(ep['shared']) / 1000 * TIME_STEP_15MIN,
-                'purchased': 0,
+                'sold': float(np.sum(ep['prod_rec'])) / 1000 * TIME_STEP_15MIN,
+                'self_cons': float(np.sum(ep['shared'])) / 1000 * TIME_STEP_15MIN,
+                'purchased': float(np.sum(ep['unmet'])) / 1000 * TIME_STEP_15MIN,
                 'price_sold': 104,
                 'price_buy': 130,
                 'decay': 0.02,
+                'prod_degradation': 0.005,
             }
         }
         ec = rec.economic_performance(
