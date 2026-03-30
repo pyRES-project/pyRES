@@ -274,6 +274,25 @@ systems:
       n_parallel: 10
       tilt: 30
       azimuth: 0
+      # [MIGLIORAMENTO #2] Parametri elettrici del modulo (prima hardcoded nel costruttore)
+      isc_ref: 10.47
+      voc_ref: 49.3
+      vmppt_ref: 40.6
+      imppt_ref: 9.86
+      mu_isc_ref: 0.02
+      mu_voc_ref: 0.26
+      ser_cell: 60
+      t_cell_noct_c: 42
+      area: 2.07
+      # [MIGLIORAMENTO #9] Bandgap configurabile (Si=1.12, CdTe=1.45, GaAs=1.35)
+      eg: 1.12
+      # [MIGLIORAMENTO #7] Perdite di sistema
+      dc_ac_efficiency: 0.97
+      mismatch_loss: 0.02
+      wiring_loss: 0.015
+      soiling_loss: 0.03
+      # [MIGLIORAMENTO #3] Degradazione annuale dei moduli
+      annual_degradation: 0.005
     economics:
       cap_cost: 1500
       opex_cost: 40
@@ -305,6 +324,21 @@ systems:
       n_parallel: 12
       tilt: 30
       azimuth: 0
+      isc_ref: 10.47
+      voc_ref: 49.3
+      vmppt_ref: 40.6
+      imppt_ref: 9.86
+      mu_isc_ref: 0.02
+      mu_voc_ref: 0.26
+      ser_cell: 60
+      t_cell_noct_c: 42
+      area: 2.07
+      eg: 1.12
+      dc_ac_efficiency: 0.97
+      mismatch_loss: 0.02
+      wiring_loss: 0.015
+      soiling_loss: 0.03
+      annual_degradation: 0.005
     economics:
       cap_cost: 1500
       opex_cost: 40
@@ -336,6 +370,21 @@ systems:
       n_parallel: 11
       tilt: 30
       azimuth: 0
+      isc_ref: 10.47
+      voc_ref: 49.3
+      vmppt_ref: 40.6
+      imppt_ref: 9.86
+      mu_isc_ref: 0.02
+      mu_voc_ref: 0.26
+      ser_cell: 60
+      t_cell_noct_c: 42
+      area: 2.07
+      eg: 1.12
+      dc_ac_efficiency: 0.97
+      mismatch_loss: 0.02
+      wiring_loss: 0.015
+      soiling_loss: 0.03
+      annual_degradation: 0.005
     economics:
       cap_cost: 1500
       opex_cost: 40
@@ -371,6 +420,15 @@ bess:
       soc_min: 0.2
       n_series: 2
       n_parallel: 2
+      # [MIGLIORAMENTO BESS] Nuovi parametri
+      eta_charge: 0.95
+      eta_discharge: 0.95
+      v_min: 20.0
+      self_discharge_rate_per_hour: 0.00004
+      c_rate_max: 1.0
+      annual_capacity_fade: 0.02
+      lifetime_years: 15
+      min_energy_threshold: 0.01
     economics:
       cap_cost: 720
       opex_cost: 20
@@ -405,6 +463,14 @@ bess:
       soc_min: 0.2
       n_series: 2
       n_parallel: 2
+      eta_charge: 0.95
+      eta_discharge: 0.95
+      v_min: 20.0
+      self_discharge_rate_per_hour: 0.00004
+      c_rate_max: 1.0
+      annual_capacity_fade: 0.02
+      lifetime_years: 15
+      min_energy_threshold: 0.01
     economics:
       cap_cost: 720
       opex_cost: 20
@@ -439,6 +505,14 @@ bess:
       soc_min: 0.2
       n_series: 2
       n_parallel: 2
+      eta_charge: 0.95
+      eta_discharge: 0.95
+      v_min: 20.0
+      self_discharge_rate_per_hour: 0.00004
+      c_rate_max: 1.0
+      annual_capacity_fade: 0.02
+      lifetime_years: 15
+      min_energy_threshold: 0.01
     economics:
       cap_cost: 720
       opex_cost: 20

@@ -42,6 +42,12 @@ class Economics:
         c3 = np.zeros(time_horizon + 1)
         c4 = np.zeros(time_horizon + 1)
         c5 = np.zeros(time_horizon + 1)
+
+        # [MIGLIORAMENTO #10] Costo di sostituzione batteria:
+        # array dedicato per tracciare i costi di replacement delle batterie
+        # che raggiungono la fine della vita utile durante l'orizzonte di investimento
+        c6_replacement = np.zeros(time_horizon + 1)
+
         outflow0 = 0
         opex_cost = 0
         tax = 0
@@ -74,6 +80,30 @@ class Economics:
         c5[0] = 0
 
 
+        # [MIGLIORAMENTO #10] Pre-calcolo degli anni di sostituzione batteria:
+        # per ogni componente di tipo Bess (identificato dalla presenza dell'attributo
+        # lifetime_years), calcola gli anni in cui è necessaria la sostituzione.
+        # Il costo di sostituzione è il CAPEX originale della batteria, eventualmente
+        # ridotto per il calo dei costi delle batterie nel tempo (learning rate ~5%/anno).
+        # Es: batteria con lifetime=10 anni e orizzonte=20 anni -> sostituzione all'anno 10.
+        battery_replacement_schedule = {}
+        for component in self.components:
+            if hasattr(component, 'lifetime_years') and hasattr(component, 'annual_capacity_fade'):
+                lifetime = component.lifetime_years
+                # Calcola tutti gli anni di sostituzione nell'orizzonte temporale
+                replacement_years = []
+                year = lifetime
+                while year <= time_horizon:
+                    replacement_years.append(year)
+                    year += lifetime
+                if replacement_years:
+                    # Costo di sostituzione = CAPEX originale della batteria
+                    replacement_cost = component.cap_cost_unit * component.cap
+                    battery_replacement_schedule[component.id] = {
+                        'years': replacement_years,
+                        'cost': replacement_cost
+                    }
+
         for year in range(1, time_horizon + 1):
             r1_i = 0
             r2_i = 0
@@ -83,6 +113,22 @@ class Economics:
             c2_i = opex_cost
             c3_i = tax
             c5_i = 0
+
+            # [MIGLIORAMENTO #3] Applicazione della degradazione della capacità della batteria
+            # ai flussi energetici annuali: con la degradazione, l'energia venduta e
+            # autoconsumata decresce negli anni proporzionalmente alla capacità residua
+            # delle batterie. Il fattore di degradazione PV (annual_degradation) è gestito
+            # separatamente in PvPanels, qui si applica la degradazione delle batterie
+            # che riduce la capacità di accumulo disponibile.
+            # Il fattore combinato di degradazione BESS viene applicato ai flussi energetici
+            bess_degradation_factor = 1.0
+            for component in self.components:
+                if hasattr(component, 'annual_capacity_fade') and component.annual_capacity_fade > 0:
+                    # La capacità residua media della batteria all'anno 'year'
+                    # influenza la quantità di energia che può essere immagazzinata/erogata
+                    bess_degradation_factor = min(bess_degradation_factor,
+                                                   (1 - component.annual_capacity_fade) ** (year - 1))
+
             for key in self.annual_en_flows_and_prices:
                 r1_i += self.annual_en_flows_and_prices[key]['sold'] * self.annual_en_flows_and_prices[key]['price_sold'] * (
                         1 - self.annual_en_flows_and_prices[key]['decay']) ** (year - 1)
@@ -107,7 +153,16 @@ class Economics:
                     if is_in_range:
                         c5_i += component.other_cost[key]['unit'] * component.other_cost[key]['cost_unit']
 
-
+            # [MIGLIORAMENTO #10] Aggiunta del costo di sostituzione batteria:
+            # se nell'anno corrente è prevista la sostituzione di una batteria,
+            # il costo viene aggiunto ai costi straordinari.
+            # Il costo potrebbe essere ridotto per il calo dei prezzi delle batterie
+            # (battery learning rate), ma per semplicità si usa il costo originale.
+            c6_i = 0
+            for batt_id, schedule in battery_replacement_schedule.items():
+                if year in schedule['years']:
+                    c6_i += schedule['cost']
+            c6_replacement[year] = c6_i
 
             r1[year] = r1_i
             r2[year] = r2_i
@@ -119,8 +174,8 @@ class Economics:
             c4[year] = c4_i
             c5[year] = c5_i
 
-
-            outflow[year] = c1_i + c2_i + c3_i + c4_i+c5_i
+            # [MIGLIORAMENTO #10] Il costo di sostituzione è incluso negli outflow
+            outflow[year] = c1_i + c2_i + c3_i + c4_i + c5_i + c6_i
             inflow[year] = r1_i + r2_i + r3_i + r4_i
             cashflow[year] = inflow[year] - outflow[year]
             cashflow_cum[year] = cashflow_cum[year - 1] + cashflow[year]
@@ -141,7 +196,7 @@ class Economics:
         ec_perf['cost_taxes'] = c3
         ec_perf['cost_taxes_on_sale'] = c4
         ec_perf['cost_others'] = c5
+        # [MIGLIORAMENTO #10] Nuova voce nel report economico: costo di sostituzione batterie
+        ec_perf['cost_bess_replacement'] = c6_replacement
 
         return ec_perf
-
-

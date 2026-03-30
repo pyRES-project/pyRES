@@ -142,11 +142,15 @@ class Rec:
             self.en_perf_evolution[carrier]['surplus'] = surplus_rec
             self.en_perf_evolution[carrier]['unmet'] = deficit_rec
 
-            if carrier=='electricity':
-                if self.rec_bess:
-
-                    bess = self.rec_bess
-                    controller = Controller(bess=bess)
+            # [MIGLIORAMENTO #8] BESS multi-carrier: rimosso il vincolo hardcoded
+            # "if carrier == 'electricity'" che impediva l'uso di accumulo comunitario
+            # per carrier diversi (es. accumulo termico condiviso nella CER).
+            # Ora il BESS della REC viene attivato per qualsiasi carrier, filtrando
+            # solo le batterie compatibili con il carrier corrente.
+            if self.rec_bess:
+                carrier_bess = [b for b in self.rec_bess if carrier in b.carriers]
+                if carrier_bess:
+                    controller = Controller(bess=carrier_bess)
 
                     stored, supply, power, surplus_rec, deficit_rec, soc = controller.energy_performance(
                         production=p_net, demand=d_net, time=time)

@@ -91,8 +91,15 @@ class Prosumer:
             self.en_perf_evolution[carrier]['surplus'] = surplus
             self.en_perf_evolution[carrier]['unmet'] = unmet
 
-            if carrier=='electricity':
-                if self.bess:
+            # [MIGLIORAMENTO #8] BESS multi-carrier: rimosso il vincolo hardcoded
+            # "if carrier == 'electricity'" che impediva l'uso di accumulo per
+            # carrier diversi (es. accumulo termico, idrogeno).
+            # Ora il BESS viene attivato per qualsiasi carrier, purché ci siano
+            # batterie associate al prosumer con quel carrier nei loro carriers.
+            if self.bess:
+                # Filtra solo le batterie compatibili con il carrier corrente
+                carrier_bess = [b for b in self.bess if carrier in b.carriers]
+                if carrier_bess:
                     self.en_perf_evolution[carrier] = {}
                     self.en_perf_evolution[carrier]['prod'] = p_tot
                     self.en_perf_evolution[carrier]['dem'] = d_tot
@@ -100,8 +107,7 @@ class Prosumer:
                     self.en_perf_evolution[carrier]['surplus_without_bess'] = surplus
                     self.en_perf_evolution[carrier]['unmet_without_bess'] = unmet
 
-                    bess = self.bess
-                    controller = Controller(bess=bess)
+                    controller = Controller(bess=carrier_bess)
 
                     stored, supply, power, surplus, deficit, soc = controller.energy_performance(
                         production=p_tot, demand=d_tot, time=time)

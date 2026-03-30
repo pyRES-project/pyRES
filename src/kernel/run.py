@@ -76,27 +76,118 @@ def run(file_path,output_dir,base_path=None):
                 url='https://re.jrc.ec.europa.eu/api/v5_2/'
             )[0]
 
-            I_beam, I_skydiff, I_grounddiff, t_amb = [], [], [], []
-            for e, e1, e2, e3 in zip(irr['poa_direct'], irr['poa_sky_diffuse'], irr['poa_ground_diffuse'], irr['temp_air']):
-                I_beam.extend([e] * int(1 / time_step))
-                I_skydiff.extend([e1] * int(1 / time_step))
-                I_grounddiff.extend([e2] * int(1 / time_step))
-                t_amb.extend([e3] * int(1 / time_step))
+            # [MIGLIORAMENTO #4] Interpolazione dei dati meteo sub-orari:
+            # i dati PVGIS sono a risoluzione oraria. Invece di replicare lo stesso
+            # valore per tutti i sub-step (step-and-hold), si usa interpolazione lineare
+            # per generare profili più realistici. Questo è importante perché l'irradianza
+            # varia in modo continuo, specialmente durante passaggi nuvolosi.
+            n_substeps = int(1 / time_step)
 
-            irradiation_data[sys_id] = (I_beam, I_skydiff, I_grounddiff, t_amb)
+            if n_substeps > 1:
+                # Creazione di un indice temporale ad alta risoluzione per l'interpolazione
+                hourly_index = irr.index
+                freq_str = config_data["simulation"]["time_step"]
+                high_res_index = pd.date_range(
+                    start=hourly_index[0],
+                    periods=len(hourly_index) * n_substeps,
+                    freq=freq_str
+                )
 
-            systems[sys_id] = PvPanels(
-                id=sys_id,
-                cap_cost=economics["cap_cost"],
-                opex_cost=economics["opex_cost"],
-                inc_year=economics["inc_year"],
-                inc_start_end=economics["inc_start_end"],
-                tax_year=economics["tax_year"],
-                other_cost=economics["other_cost"],
-                other_rev=economics["other_rev"],
-                n_series=tech["n_series"],
-                n_parallel=tech["n_parallel"],
-            )
+                # Interpolazione lineare delle colonne meteorologiche necessarie
+                irr_resampled = irr[['poa_direct', 'poa_sky_diffuse', 'poa_ground_diffuse', 'temp_air']].copy()
+
+                # [MIGLIORAMENTO #6] Aggiunta della velocità del vento per il modello termico di Faiman:
+                # PVGIS fornisce wind_speed a 10m. Se non presente nel dataset, si usa un default di 1 m/s
+                if 'wind_speed' in irr.columns:
+                    irr_resampled['wind_speed'] = irr['wind_speed']
+                else:
+                    irr_resampled['wind_speed'] = 1.0
+
+                # Reindex all'alta risoluzione e interpolazione lineare tra i punti orari
+                irr_highres = irr_resampled.reindex(
+                    irr_resampled.index.union(high_res_index)
+                ).interpolate(method='linear').reindex(high_res_index)
+
+                I_beam = irr_highres['poa_direct'].values
+                I_skydiff = irr_highres['poa_sky_diffuse'].values
+                I_grounddiff = irr_highres['poa_ground_diffuse'].values
+                t_amb = irr_highres['temp_air'].values
+                wind_speed = irr_highres['wind_speed'].values
+            else:
+                # Risoluzione oraria: nessuna interpolazione necessaria
+                I_beam = irr['poa_direct'].values
+                I_skydiff = irr['poa_sky_diffuse'].values
+                I_grounddiff = irr['poa_ground_diffuse'].values
+                t_amb = irr['temp_air'].values
+                if 'wind_speed' in irr.columns:
+                    wind_speed = irr['wind_speed'].values
+                else:
+                    wind_speed = np.ones(len(t_amb))
+
+            # [MIGLIORAMENTO #5] Calcolo dell'angolo di incidenza (theta) per attivare l'IAM:
+            # pvlib.irradiance.aoi() calcola l'angolo tra la radiazione diretta e la normale
+            # al piano del pannello. Questo angolo è necessario per il calcolo dell'Incidence
+            # Angle Modifier che corregge le perdite di riflessione angolare sul vetro.
+            # Senza IAM la produzione viene sovrastimata del 3-8%.
+            site_location = pvlib.location.Location(latitude=lat, longitude=lon)
+
+            # Calcolo della posizione solare per ogni timestep
+            if n_substeps > 1:
+                solar_position = site_location.get_solarposition(high_res_index)
+            else:
+                solar_position = site_location.get_solarposition(irr.index)
+
+            # Angolo di incidenza della radiazione beam sulla superficie inclinata
+            # surface_azimuth in pvlib: 0=Nord, 90=Est, 180=Sud (convezione pvlib)
+            # In pyRES config: 0=Sud, quindi si aggiunge 180° per la convezione pvlib
+            theta = pvlib.irradiance.aoi(
+                surface_tilt=tilt,
+                surface_azimuth=azimuth + 180,  # conversione da pyRES (0=Sud) a pvlib (0=Nord)
+                solar_zenith=solar_position['apparent_zenith'],
+                solar_azimuth=solar_position['azimuth']
+            ).values
+
+            # Limita theta a [0, 90] gradi: angoli > 90° significano sole dietro il pannello
+            theta = np.clip(theta, 0, 90)
+
+            irradiation_data[sys_id] = (I_beam, I_skydiff, I_grounddiff, t_amb, wind_speed, theta)
+
+            # [MIGLIORAMENTO #2] Passaggio dei parametri elettrici del modulo dalla configurazione YAML:
+            # nel codice originale, run.py passava solo n_series, n_parallel e i parametri economici,
+            # lasciando tutti i parametri elettrici ai valori di default del costruttore.
+            # Questo significava che TUTTI i pannelli simulati erano identici indipendentemente
+            # dalla configurazione. Ora i parametri del modulo sono letti dal file YAML.
+            pv_params = {
+                'id': sys_id,
+                'cap_cost': economics["cap_cost"],
+                'opex_cost': economics["opex_cost"],
+                'inc_year': economics["inc_year"],
+                'inc_start_end': economics["inc_start_end"],
+                'tax_year': economics["tax_year"],
+                'other_cost': economics["other_cost"],
+                'other_rev': economics["other_rev"],
+                'n_series': tech["n_series"],
+                'n_parallel': tech["n_parallel"],
+            }
+
+            # Parametri elettrici del modulo (opzionali nella config, con default nel costruttore)
+            optional_pv_tech_params = [
+                'isc_ref', 'voc_ref', 'vmppt_ref', 'imppt_ref',
+                'mu_isc_ref', 'mu_voc_ref', 'ser_cell',
+                't_cell_noct_c', 't_cell_ref_c', 'I_tot_ref',
+                'area', 'mode_mppt',
+                # [MIGLIORAMENTO #9] Bandgap configurabile
+                'eg',
+                # [MIGLIORAMENTO #7] Parametri di perdita di sistema
+                'dc_ac_efficiency', 'mismatch_loss', 'wiring_loss', 'soiling_loss',
+                # [MIGLIORAMENTO #3] Tasso di degradazione annuale
+                'annual_degradation',
+            ]
+            for param in optional_pv_tech_params:
+                if param in tech:
+                    pv_params[param] = tech[param]
+
+            systems[sys_id] = PvPanels(**pv_params)
 
     for sys_id, obj in systems.items():
         for system in config_data["systems"]:
@@ -104,9 +195,12 @@ def run(file_path,output_dir,base_path=None):
                 tilt = system[sys_id]["tech"]["tilt"]
                 break
 
-        I_beam, I_skydiff, I_grounddiff, t_amb = irradiation_data[sys_id]
-        obj.compute_output(slope=tilt, theta=None, I_beam=I_beam, I_skydiff=I_skydiff,
-                           I_grounddiff=I_grounddiff, t_amb=t_amb)
+        # [MIGLIORAMENTO #5, #6] Passaggio di theta e wind_speed a compute_output:
+        # theta attiva il calcolo IAM per le perdite di riflessione angolare,
+        # wind_speed attiva il modello termico di Faiman al posto del NOCT
+        I_beam, I_skydiff, I_grounddiff, t_amb, wind_speed, theta = irradiation_data[sys_id]
+        obj.compute_output(slope=tilt, theta=theta, I_beam=I_beam, I_skydiff=I_skydiff,
+                           I_grounddiff=I_grounddiff, t_amb=t_amb, wind_speed=wind_speed)
 
     # generate consumers
     consumers = {}
@@ -127,26 +221,53 @@ def run(file_path,output_dir,base_path=None):
             tech = bess_conf["tech"]
             econ = bess_conf["economics"]
 
-            bess_storage[bess_id] = Bess(
-                id=tech["id"],
-                carriers=["electricity"],
-                cap_module=tech["cap_module"],
-                v=tech["v"],
-                i_max=tech["i_max"],
-                i_min=tech["i_min"],
-                soc_in=tech["soc_in"],
-                soc_max=tech["soc_max"],
-                soc_min=tech["soc_min"],
-                n_series=tech["n_series"],
-                n_parallel=tech["n_parallel"],
-                cap_cost=econ["cap_cost"],
-                opex_cost=econ["opex_cost"],
-                inc_year=econ["inc_year"],
-                inc_start_end=econ["inc_start_end"],
-                tax_year=econ["tax_year"],
-                other_cost=econ["other_cost"],
-                other_rev=econ["other_rev"]
-            )
+            # [MIGLIORAMENTO BESS] Costruzione dei parametri BESS con supporto
+            # per i nuovi parametri opzionali dalla configurazione YAML.
+            # I parametri obbligatori sono passati esplicitamente, quelli opzionali
+            # vengono letti dalla config solo se presenti (altrimenti usano i default).
+            bess_params = {
+                'id': tech["id"],
+                'carriers': ["electricity"],
+                'cap_module': tech["cap_module"],
+                'v': tech["v"],
+                'i_max': tech["i_max"],
+                'i_min': tech["i_min"],
+                'soc_in': tech["soc_in"],
+                'soc_max': tech["soc_max"],
+                'soc_min': tech["soc_min"],
+                'n_series': tech["n_series"],
+                'n_parallel': tech["n_parallel"],
+                'cap_cost': econ["cap_cost"],
+                'opex_cost': econ["opex_cost"],
+                'inc_year': econ["inc_year"],
+                'inc_start_end': econ["inc_start_end"],
+                'tax_year': econ["tax_year"],
+                'other_cost': econ["other_cost"],
+                'other_rev': econ["other_rev"],
+            }
+
+            # Parametri BESS opzionali (con default nel costruttore di Bess)
+            optional_bess_tech_params = [
+                # [MIGLIORAMENTO #1] Efficienza carica/scarica
+                'eta_charge', 'eta_discharge',
+                # [MIGLIORAMENTO #2] Tensione minima per V(SOC) variabile
+                'v_min',
+                # [MIGLIORAMENTO #5] Tasso di autoscarica
+                'self_discharge_rate_per_hour',
+                # [MIGLIORAMENTO #9] Limite C-rate
+                'c_rate_max',
+                # [MIGLIORAMENTO #3] Degradazione annuale capacità
+                'annual_capacity_fade',
+                # [MIGLIORAMENTO #10] Vita utile in anni
+                'lifetime_years',
+                # [MIGLIORAMENTO #6] Soglia minima per micro-cicli
+                'min_energy_threshold',
+            ]
+            for param in optional_bess_tech_params:
+                if param in tech:
+                    bess_params[param] = tech[param]
+
+            bess_storage[bess_id] = Bess(**bess_params)
 
     #generate prosumers
     prosumers = {}
