@@ -264,6 +264,11 @@ users:
     carriers:
       electricity:
         column: user51
+  user_rec:
+    id: rec_load
+    carriers:
+      electricity:
+        column: user2
 systems:
 - pv1:
     tech:
@@ -274,7 +279,6 @@ systems:
       n_parallel: 10
       tilt: 30
       azimuth: 0
-      # [MIGLIORAMENTO #2] Parametri elettrici del modulo (prima hardcoded nel costruttore)
       isc_ref: 10.47
       voc_ref: 49.3
       vmppt_ref: 40.6
@@ -284,19 +288,16 @@ systems:
       ser_cell: 60
       t_cell_noct_c: 42
       area: 2.07
-      # [MIGLIORAMENTO #9] Bandgap configurabile (Si=1.12, CdTe=1.45, GaAs=1.35)
       eg: 1.12
-      # [MIGLIORAMENTO #7] Perdite di sistema
       dc_ac_efficiency: 0.97
       mismatch_loss: 0.02
       wiring_loss: 0.015
       soiling_loss: 0.03
-      # [MIGLIORAMENTO #3] Degradazione annuale dei moduli
       annual_degradation: 0.005
     economics:
-      cap_cost: 1500
+      cap_cost: 1000
       opex_cost: 40
-      inc_year: 9000.0
+      inc_year: 6000.0
       inc_start_end:
       - 1
       - 10
@@ -340,9 +341,9 @@ systems:
       soiling_loss: 0.03
       annual_degradation: 0.005
     economics:
-      cap_cost: 1500
+      cap_cost: 1000
       opex_cost: 40
-      inc_year: 4680.000000000001
+      inc_year: 3120.0000000000005
       inc_start_end:
       - 1
       - 10
@@ -386,7 +387,7 @@ systems:
       soiling_loss: 0.03
       annual_degradation: 0.005
     economics:
-      cap_cost: 1500
+      cap_cost: 1000
       opex_cost: 40
       inc_year: 0
       inc_start_end:
@@ -423,15 +424,15 @@ bess:
       eta_charge: 0.95
       eta_discharge: 0.95
       v_min: 20.0
-      self_discharge_rate_per_hour: 0.00004
+      self_discharge_rate_per_hour: 4.0e-05
       c_rate_max: 1.0
       annual_capacity_fade: 0.02
       lifetime_years: 15
       min_energy_threshold: 0.01
     economics:
-      cap_cost: 720
+      cap_cost: 450
       opex_cost: 20
-      inc_year: 368.64
+      inc_year: 230.4
       inc_start_end:
       - 1
       - 10
@@ -439,7 +440,7 @@ bess:
       other_cost:
         item1:
           unit: 10.24
-          cost_unit: 720
+          cost_unit: 450
           dur:
           - 10
           - 10
@@ -465,15 +466,15 @@ bess:
       eta_charge: 0.95
       eta_discharge: 0.95
       v_min: 20.0
-      self_discharge_rate_per_hour: 0.00004
+      self_discharge_rate_per_hour: 4.0e-05
       c_rate_max: 1.0
       annual_capacity_fade: 0.02
       lifetime_years: 15
       min_energy_threshold: 0.01
     economics:
-      cap_cost: 720
+      cap_cost: 450
       opex_cost: 20
-      inc_year: 368.64
+      inc_year: 230.4
       inc_start_end:
       - 1
       - 10
@@ -481,7 +482,7 @@ bess:
       other_cost:
         item1:
           unit: 10.24
-          cost_unit: 720
+          cost_unit: 450
           dur:
           - 10
           - 10
@@ -507,13 +508,13 @@ bess:
       eta_charge: 0.95
       eta_discharge: 0.95
       v_min: 20.0
-      self_discharge_rate_per_hour: 0.00004
+      self_discharge_rate_per_hour: 4.0e-05
       c_rate_max: 1.0
       annual_capacity_fade: 0.02
       lifetime_years: 15
       min_energy_threshold: 0.01
     economics:
-      cap_cost: 720
+      cap_cost: 450
       opex_cost: 20
       inc_year: 0
       inc_start_end:
@@ -523,7 +524,7 @@ bess:
       other_cost:
         item1:
           unit: 10.24
-          cost_unit: 720
+          cost_unit: 450
           dur:
           - 10
           - 10
@@ -549,11 +550,11 @@ prosumers:
       - bess2
     economics:
       tax_rate: 0.2
-      int_rate: 0.03
+      int_rate: 0.05
       carriers_and_costs:
         electricity:
           decay: 0.02
-          price_buy: 130
+          price_buy: 250
           price_sold: 104
       other_capex_perc:
       - 0
@@ -569,11 +570,11 @@ prosumers:
       bess: []
     economics:
       tax_rate: 0.2
-      int_rate: 0.03
+      int_rate: 0.05
       carriers_and_costs:
         electricity:
           decay: 0.02
-          price_buy: 130
+          price_buy: 250
           price_sold: 104
       other_capex_perc:
       - 0.02
@@ -641,13 +642,15 @@ rec:
       - pv3
       bess:
       - bess3
+      rec_users:
+      - user_rec
     economics:
       tax_rate: 0.2
-      int_rate: 0.03
+      int_rate: 0.05
       carriers_and_costs:
         electricity:
           decay: 0.02
-          price_buy: 130
+          price_buy: 250
           price_sold: 104
       other_capex_perc:
       - 0.02

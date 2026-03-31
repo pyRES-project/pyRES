@@ -10,7 +10,7 @@ from src.rec_sim.Controller import Controller
 
 
 class Rec:
-    def __init__(self, id, carriers, prosumers, consumers, rec_systems=[],rec_bess=[]):
+    def __init__(self, id, carriers, prosumers, consumers, rec_systems=[],rec_bess=[], rec_users=[]):
         """
         simulates a REC which includes prosumers, consumers and power production system of the REC
 
@@ -20,6 +20,7 @@ class Rec:
         :param consumers: list of obj by Consumer --> list of consumers
         :param rec_systems: list of obj by System --> list of production systems
         :param rec_bess: list of obj by Bess --> list of batteries
+        :param rec_users: list of obj by Consumer --> loads directly connected to the REC (optional)
         """
 
         self.id = id
@@ -28,6 +29,7 @@ class Rec:
         self.consumers = consumers
         self.rec_systems = rec_systems
         self.rec_bess = rec_bess
+        self.rec_users = rec_users
         self.en_perf_evolution = {}
         self.ec_perf={}
 
@@ -155,6 +157,25 @@ class Rec:
                     self.en_perf_evolution[carrier]['surplus'] = surplus_rec
                     self.en_perf_evolution[carrier]['unmet'] = deficit_rec
 
+
+            # Bilancio energetico del carico diretto della REC (se presente).
+            # Solo questo carico genera self_cons e purchased attribuibili alla REC.
+            if self.rec_users:
+                d_rec_own = 0
+                for user in self.rec_users:
+                    if carrier in user.dem:
+                        d_rec_own += user.en_perf_evolution[carrier]
+                d_rec_own = np.asarray(d_rec_own, dtype=float)
+                # Produzione disponibile dalla REC (impianti + eventuale BESS)
+                p_rec_available = np.asarray(p_rec, dtype=float)
+                if self.rec_bess and 'supply' in self.en_perf_evolution[carrier]:
+                    p_rec_available = p_rec_available + self.en_perf_evolution[carrier]['supply']
+                self.en_perf_evolution[carrier]['self_cons_rec'] = np.minimum(p_rec_available, d_rec_own)
+                self.en_perf_evolution[carrier]['purchased_rec'] = np.maximum(0, d_rec_own - p_rec_available)
+            else:
+                n = len(self.en_perf_evolution[carrier]['shared'])
+                self.en_perf_evolution[carrier]['self_cons_rec'] = np.zeros(n)
+                self.en_perf_evolution[carrier]['purchased_rec'] = np.zeros(n)
 
         return self.en_perf_evolution
 

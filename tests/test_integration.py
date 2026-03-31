@@ -240,8 +240,8 @@ class TestRecIntegration:
         flows = {
             'electricity': {
                 'sold': float(np.sum(ep['prod_rec'])) / 1000 * TIME_STEP_15MIN,
-                'self_cons': float(np.sum(ep['shared'])) / 1000 * TIME_STEP_15MIN,
-                'purchased': float(np.sum(ep['unmet'])) / 1000 * TIME_STEP_15MIN,
+                'self_cons': 0.0,  # La REC non ha carichi propri, nessun autoconsumo
+                'purchased': 0.0,  # La REC non acquista energia dalla rete
                 'price_sold': 104,
                 'price_buy': 130,
                 'decay': 0.02,
@@ -255,6 +255,8 @@ class TestRecIntegration:
         assert 'NPV' in ec
         assert 'cost_bess_replacement' in ec
         assert len(ec['cost_bess_replacement']) == 21
+        # La REC non ha costi di acquisto dalla rete
+        assert ec['cost_resources'][1] == 0.0
 
 
 # ===========================================================================

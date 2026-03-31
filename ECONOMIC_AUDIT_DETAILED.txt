@@ -1,0 +1,381 @@
+
+═══════════════════════════════════════════════════════════════════════════════════
+DETAILED ECONOMIC PARAMETERS EXTRACTION AND ANALYSIS
+Tutorial_REC1.ipynb vs src/rec_sim/* Classes
+═══════════════════════════════════════════════════════════════════════════════════
+
+1. PV PARAMETERS EXTRACTION
+═══════════════════════════════════════════════════════════════════════════════════
+
+FILE: Tutorial_REC1.ipynb (Cell 21 - pv_module_params)
+────────────────────────────────────────────────────────────
+
+pv_module_params = {
+    "isc_ref": 10.47,                  # Short-circuit current (A) at STC
+    "voc_ref": 49.3,                   # Open-circuit voltage (V) at STC
+    "vmppt_ref": 40.6,                 # Voltage at MPP (V) at STC
+    "imppt_ref": 9.86,                 # Current at MPP (A) at STC
+    "mu_isc_ref": 0.02,                # Temperature coefficient of Isc (A/K)
+    "mu_voc_ref": 0.26,                # Temperature coefficient of Voc (V/K)
+    "ser_cell": 60,                    # Number of cells in series
+    "t_cell_noct_c": 42,               # Cell temperature at NOCT (°C)
+    "area": 2.07,                      # Module area (m²)
+    "eg": 1.12,                        # Bandgap energy (eV) - Si crystalline
+    "dc_ac_efficiency": 0.97,          # Inverter efficiency (97%)
+    "mismatch_loss": 0.02,             # Module mismatch loss (2%)
+    "wiring_loss": 0.015,              # Cabling loss (1.5%)
+    "soiling_loss": 0.03,              # Dirt/dust loss (3%)
+    "annual_degradation": 0.005,       # Annual power degradation (0.5%)
+}
+
+Module specification: LG NeON 2 LG370Q1C-V5 (370W, 72-cell)
+Nominal efficiency: (9.86A × 40.6V) / (2.07m² × 1000W/m²) = 18.9%
+
+System derate factor = 0.97 × (1-0.02) × (1-0.015) × (1-0.03) = 0.9245 (92.45%)
+
+
+PV ECONOMICS IN TUTORIAL (Cell 21 - systems_dict):
+──────────────────────────────────────────────────
+
+pv1 (REC-affiliated system):
+├─ Configuration: n_series=30, n_parallel=10 → 300 modules total
+├─ Nominal capacity: 9.86A × 40.6V × 300 / 1000 = 120 kW
+├─ cap_cost: 1500 €/kW → Total CAPEX: 180,000€
+├─ opex_cost: 40 €/kW/yr → Annual O&M: 4,800€/yr
+├─ inc_year: min(0.5×30×10×0.4×1500, 96000)/10 = 9,600€/yr
+├─ inc_start_end: [1, 10] → 10-year incentive period
+├─ tax_year: 0€/yr → No annual tax
+└─ other_cost: 30×10×0.4 = 120 units × 350€ = 42,000€ in year 10
+   (Inverter replacement cost at end of typical 10-year warranty)
+
+pv2 (Prosumer-affiliated):
+├─ Configuration: n_series=13, n_parallel=12 → 156 modules total
+├─ Nominal capacity: 52 kW
+├─ Economics: Same unit rates as pv1
+├─ cap_cost: 1500 €/kW → Total CAPEX: 78,000€
+├─ Annual O&M: 2,080€/yr
+├─ inc_year: 9,600€/yr (hits 96k cap)
+└─ inc_start_end: [1, 10]
+
+pv3 (Non-affiliated REC system):
+├─ Configuration: n_series=11, n_parallel=11 → 121 modules total
+├─ Nominal capacity: 40 kW
+├─ cap_cost: 1500 €/kW → Total CAPEX: 60,000€
+├─ inc_year: 0€/yr → NO incentive (not REC member)
+└─ inc_start_end: [0, 0]
+
+
+CODE DEFAULTS (src/rec_sim/PvPanels.py):
+───────────────────────────────────────
+
+Constructor defaults (lines 16-40):
+├─ cap_cost: (required parameter, no default)
+├─ opex_cost: (required parameter, no default)
+├─ inc_year: (required parameter, no default)
+├─ dc_ac_efficiency: 0.97 ✓ MATCHES TUTORIAL
+├─ mismatch_loss: 0.02 ✓ MATCHES TUTORIAL
+├─ wiring_loss: 0.015 ✓ MATCHES TUTORIAL
+├─ soiling_loss: 0.03 ✓ MATCHES TUTORIAL
+├─ annual_degradation: 0.005 ✓ MATCHES TUTORIAL
+└─ All other electrical parameters: Configurable, no hardcoded defaults
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+2. BESS PARAMETERS EXTRACTION
+═══════════════════════════════════════════════════════════════════════════════════
+
+FILE: Tutorial_REC1.ipynb (Cell 23 - bess_common_tech_params)
+──────────────────────────────────────────────────────────────
+
+bess_common_tech_params = {
+    'eta_charge': 0.95,                    # Charging efficiency (95%)
+    'eta_discharge': 0.95,                 # Discharging efficiency (95%)
+    'v_min': 20.0,                         # Minimum voltage at SOC=0 (V/module)
+    'self_discharge_rate_per_hour': 0.00004,  # Self-discharge (~3%/month for Li-ion)
+    'c_rate_max': 1.0,                     # Maximum C-rate (1C = full discharge in 1h)
+    'annual_capacity_fade': 0.02,          # Annual capacity loss (2%/year)
+    'lifetime_years': 15,                  # Expected lifetime (15 years)
+    'min_energy_threshold': 0.01,          # Minimum energy for activation (1% of capacity)
+}
+
+
+BESS ECONOMICS IN TUTORIAL (Cell 23 - bess_dict):
+──────────────────────────────────────────────────
+
+bess1 (REC-affiliated, Prosumer1):
+├─ Technology config:
+│  ├─ cap_module: 2.560 kWh (single module)
+│  ├─ n_series: 2, n_parallel: 2
+│  └─ Total capacity: 2.560 × 2 × 2 = 10.24 kWh
+├─ Voltage: v=25.6V per module → 51.2V total (n_series=2)
+├─ Current limits: i_max=100A (total: 200A), i_min=5A (total: 10A)
+├─ SOC ranges: soc_in=0.2, soc_min=0.2, soc_max=0.8
+├─ Economics:
+│  ├─ cap_cost: 720 €/kWh → Total CAPEX: 7,373€
+│  ├─ opex_cost: 20 €/kWh/yr → Annual O&M: 205€/yr
+│  ├─ inc_year: min(0.5×720×2.560×2×2, 96000)/10 = 7,373€/yr
+│  ├─ inc_start_end: [1, 10] → 10-year incentive
+│  ├─ tax_year: 10€/yr → Small annual registration fee
+│  └─ other_cost: 2.560×2×2 = 10.24 units × 720€ = 7,373€ in year 10
+└─ Rationale: Simulates 50% Bonus Fiscale with replacement cost
+
+bess2 (Prosumer1, different SOC settings):
+├─ Identical to bess1 except:
+├─ soc_max: 1.0 (can fully charge, vs 0.8 for bess1)
+└─ All economic parameters identical to bess1
+
+bess3 (REC system, non-affiliated):
+├─ Identical technical spec to bess2
+├─ Economics: SAME rates as bess1/bess2 BUT
+├─ inc_year: 0€/yr → NO incentive
+└─ inc_start_end: [0, 0]
+
+
+CODE DEFAULTS (src/rec_sim/Bess.py):
+────────────────────────────────────
+
+Constructor defaults (lines 10-53):
+├─ cap_cost: (required parameter, no default)
+├─ opex_cost: (required parameter, no default)
+├─ inc_year: (required parameter, no default)
+├─ eta_charge: 0.95 ✓ MATCHES TUTORIAL
+├─ eta_discharge: 0.95 ✓ MATCHES TUTORIAL
+├─ self_discharge_rate_per_hour: 0.00004 ✓ MATCHES TUTORIAL
+├─ c_rate_max: None (configurable, tutorial uses 1.0)
+├─ annual_capacity_fade: 0.02 ✓ MATCHES TUTORIAL
+├─ lifetime_years: 15 ✓ MATCHES TUTORIAL
+├─ min_energy_threshold: 0.01 ✓ MATCHES TUTORIAL
+├─ v_min: None (tutorial uses 20.0)
+└─ All electrical parameters: Configurable, no problematic defaults
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+3. PROSUMER/REC ECONOMIC PARAMETERS
+═══════════════════════════════════════════════════════════════════════════════════
+
+FILE: Tutorial_REC1.ipynb (Cell 25 - prosumers_dict)
+────────────────────────────────────────────────────
+
+prosumer1 (WITH BESS and REC membership):
+├─ Systems: pv1 (120 kW)
+├─ BESS: bess1, bess2 (2 × 10.24 kWh = 20.48 kWh total)
+├─ Economics:
+│  ├─ tax_rate: 0.2 (20% income tax on electricity sales)
+│  ├─ int_rate: 0.03 (3% discount rate for NPV calculation)
+│  ├─ carriers_and_costs:
+│  │  └─ electricity:
+│  │     ├─ price_buy: 130 €/MWh (grid purchase cost)
+│  │     ├─ price_sold: 104 €/MWh (grid sale price)
+│  │     └─ decay: 0.02 (2% annual price decline)
+│  └─ other_capex_perc: [0] (no additional capital expenses)
+└─ Components financial summary:
+   ├─ PV1 CAPEX: 180,000€
+   ├─ BESS1 CAPEX: 7,373€
+   ├─ BESS2 CAPEX: 7,373€
+   ├─ Total CAPEX: 194,746€
+   ├─ Annual OPEX: 4,800 + 205 + 205 = 5,210€/yr
+   └─ Incentives: 9,600 (PV) + 7,373 (BESS1) + 7,373 (BESS2) = 24,346€/yr
+
+prosumer2 (NO BESS, consumer only, REC membership):
+├─ Systems: pv2 (52 kW)
+├─ BESS: None
+├─ Economics:
+│  ├─ tax_rate: 0.2
+│  ├─ int_rate: 0.03
+│  ├─ carriers_and_costs: (identical to prosumer1)
+│  │  ├─ price_buy: 130 €/MWh
+│  │  ├─ price_sold: 104 €/MWh
+│  │  └─ decay: 0.02
+│  └─ other_capex_perc: [0.02] (2% additional soft costs)
+└─ Components financial summary:
+   ├─ PV2 CAPEX: 78,000€
+   ├─ Total CAPEX (with 2% soft costs): 78,000 / (1 - 0.02) = 79,592€
+   ├─ Annual OPEX: 2,080€/yr
+   ├─ Incentive: 9,600€/yr (REC member)
+   └─ Note: other_capex_perc increases total investment by ~2%
+
+
+FILE: Tutorial_REC1.ipynb (Cell 27 - rec_dict)
+────────────────────────────────────────────
+
+rec1 (Renewable Energy Community):
+├─ Prosumer members: prosumer1, prosumer2
+├─ Consumer members: List of consumers (e.g., user_rec non-producing members)
+├─ Systems: pv3 (40 kW community-owned)
+├─ BESS: bess3 (10.24 kWh community storage)
+├─ Economics:
+│  ├─ tax_rate: 0.2 (20%)
+│  ├─ int_rate: 0.03 (3%)
+│  ├─ carriers_and_costs:
+│  │  └─ electricity:
+│  │     ├─ price_buy: 130 €/MWh
+│  │     ├─ price_sold: 104 €/MWh
+│  │     └─ decay: 0.02
+│  └─ other_capex_perc: [0.02] (2% soft costs)
+└─ Community financial summary:
+   ├─ PV3 CAPEX: 60,000€
+   ├─ BESS3 CAPEX: 7,373€
+   ├─ Total CAPEX (with 2% soft costs): (60,000 + 7,373) / (1 - 0.02) = 68,744€
+   ├─ Annual OPEX: 1,600 + 205 = 1,805€/yr
+   └─ Incentive: 0€/yr (not affiliated/no incentive for non-member BESS)
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+4. ECONOMICS MODULE IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════════════════
+
+FILE: src/rec_sim/Economics.py
+─────────────────────────────
+
+Calculation framework:
+├─ Input: components (PV, BESS), annual_en_flows_and_prices
+├─ Output: Financial metrics over investment horizon
+├─ Time horizon: Typically 20-25 years
+├─ Key parameters applied:
+│  ├─ tax_rate: Applied to grid sales revenue (r1)
+│  │  └─ c4 = r1 × tax_rate
+│  ├─ int_rate: Discount rate for NPV
+│  │  └─ NPV = npv(int_rate, cashflow)
+│  └─ other_capex_perc: Multiplier for total CAPEX
+│     └─ outflow[0] = sum(components CAPEX) / (1 - sum(other_capex_perc))
+│
+├─ Annual flows:
+│  ├─ r1: Revenue from grid electricity sales
+│  │  └─ r1 = sold_energy × price_sold × (1-decay)^(year-1)
+│  ├─ r2: Savings from self-consumption
+│  │  └─ r2 = self_cons_energy × price_buy × (1-decay)^(year-1)
+│  ├─ r3: Incentives (from inc_year of components)
+│  ├─ c1: Cost of grid electricity purchase
+│  │  └─ c1 = purchased_energy × price_buy × (1-decay)^(year-1) [FIX #2]
+│  ├─ c2: Annual O&M costs
+│  ├─ c3: Annual taxes (from tax_year of components)
+│  ├─ c4: Tax on sales revenue
+│  │  └─ c4 = r1 × tax_rate
+│  ├─ c5: Other costs (from other_cost of components)
+│  └─ c6: BESS replacement costs
+│     └─ Applied at battery lifetime (e.g., year 15)
+│
+├─ Key fixes applied:
+│  ├─ [FIX #2] Price decay now applied to purchased energy cost (c1)
+│  │  └─ Previously: only applied to sales, not purchases
+│  ├─ [FIX #3] OPEX and tax NOT zeroed after calculation
+│  │  └─ Previously: zeroed after investment cost calculation, causing wrong totals
+│  ├─ [FIX #4] PV production degradation
+│  │  └─ Annual degradation rate applied to sold/self_cons flows
+│  ├─ [FIX #5] BESS replacement schedule
+│  │  └─ Automatic calculation based on lifetime_years
+│  └─ [IMPROVEMENT #4] Production degradation with correct purchased energy adjustment
+│     └─ When production falls, purchased energy increases (demand constant)
+│
+└─ Output metrics:
+   ├─ NPV: Net Present Value (€)
+   ├─ pbp: Payback Period (years)
+   ├─ capex: Total capital investment (€)
+   ├─ Annual revenue components: r1, r2, r3, r4
+   ├─ Annual cost components: c1, c2, c3, c4, c5
+   ├─ Cashflow and cumulative cashflow over time
+   └─ BESS replacement schedule
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+5. DETAILED FINANCIAL PARAMETERS EXTRACTION
+═══════════════════════════════════════════════════════════════════════════════════
+
+ENERGY PRICING MODEL (carriers_and_costs in tutorial):
+────────────────────────────────────────────────────
+
+Base year (Year 1) prices:
+├─ price_buy: 130 €/MWh
+│  └─ Grid electricity purchase (residential prosumer tariff equivalent)
+├─ price_sold: 104 €/MWh
+│  └─ Grid electricity sale (feed-in tariff or peer-to-peer trading)
+└─ decay: 0.02 (2% annual decline)
+
+Price evolution formula:
+├─ price_year_n = price_year_1 × (1 - decay)^(n-1)
+├─ Example for price_buy:
+│  ├─ Year 1: 130 €/MWh
+│  ├─ Year 5: 130 × (1-0.02)^4 = 120 €/MWh
+│  ├─ Year 10: 130 × (1-0.02)^9 = 107 €/MWh
+│  └─ Year 20: 130 × (1-0.02)^19 = 87 €/MWh
+
+DISCOUNT RATE & TAX IMPACT:
+───────────────────────────
+
+NPV calculation:
+├─ int_rate: 0.03 (3% annual discount)
+├─ formula: NPV = Σ CF_t / (1 + int_rate)^t
+├─ Impact: Reduces future cashflows by ~3% per year
+├─ Year 10 discounting: 1 / 1.03^10 = 0.744 (25.6% of nominal value)
+├─ Year 20 discounting: 1 / 1.03^20 = 0.554 (44.6% loss in present value)
+│
+└─ Tax on sales:
+   ├─ tax_rate: 0.20 (20% of revenue from grid sales)
+   ├─ Applied to: r1 (revenue from selling electricity)
+   ├─ Example: r1 = 10,000€ → c4 (tax cost) = 2,000€
+   └─ Does NOT apply to self-consumption savings (r2)
+
+
+ADDITIONAL COSTS & REVENUES:
+─────────────────────────────
+
+other_capex_perc (soft costs):
+├─ prosumer1: [0] = 0% additional
+│  └─ Total CAPEX = 194,746€ (no soft cost markup)
+├─ prosumer2: [0.02] = 2% additional
+│  └─ Total CAPEX = 79,592€ (78,000 / 0.98)
+└─ rec1: [0.02] = 2% additional
+   └─ Total CAPEX = 68,744€ ([60,000 + 7,373] / 0.98)
+
+other_cost & other_rev (in bess_dict):
+├─ bess systems:
+│  ├─ other_cost: {'item1': {'unit': 10.24, 'cost_unit': 720, 'dur': [10, 10]}}
+│  │  └─ In year 10: 10.24 × 720 = 7,373€ (inverter replacement equivalent)
+│  └─ other_rev: {'item1': {'unit': 0, 'rev_unit': 0, 'dur': [0, 0]}}
+│     └─ No additional revenues
+└─ pv systems:
+   ├─ other_cost: {'item1': {'unit': modules, 'cost_unit': 350, 'dur': [10, 10]}}
+   │  └─ In year 10: (number of modules × 0.4) × 350€ (e.g., inverter maintenance)
+   └─ other_rev: {'item1': {'unit': 0, 'rev_unit': 0, 'dur': [0, 0]}}
+      └─ No additional revenues
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+6. TEST FILE REFERENCE DEFAULTS (tests/test_economics.py)
+═════════════════════════════════════════════════════════════════════════════════
+
+Test helper functions establish reference defaults:
+
+_make_pv function (default parameters):
+├─ cap_cost: 1500 €/kW (MATCHES TUTORIAL)
+├─ opex_cost: 40 €/kW/yr (MATCHES TUTORIAL)
+├─ inc_year: 0€/yr (conservative: no incentives)
+├─ inc_start_end: [0, 0]
+└─ tax_year: 0€/yr
+
+_make_bess function (default parameters):
+├─ cap_cost: 720 €/kWh (MATCHES TUTORIAL)
+├─ opex_cost: 20 €/kWh/yr (MATCHES TUTORIAL)
+├─ lifetime: 10 years (note: tutorial uses 15)
+├─ annual_fade: 0.02 (MATCHES TUTORIAL)
+├─ inc_year: 0€/yr (conservative)
+└─ tax_year: 0€/yr
+
+_make_flows function (energy flow defaults):
+├─ sold: 100 MWh/year (baseline production sold)
+├─ self_cons: 50 MWh/year (baseline self-consumption)
+├─ purchased: 50 MWh/year (baseline grid purchase)
+├─ price_sold: 100 €/MWh (conservative estimate)
+├─ price_buy: 130 €/MWh (MATCHES TUTORIAL)
+├─ decay: 0.02 (MATCHES TUTORIAL)
+└─ prod_degradation: 0.0 (not included unless specified)
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+END OF DETAILED EXTRACTION
+═══════════════════════════════════════════════════════════════════════════════════

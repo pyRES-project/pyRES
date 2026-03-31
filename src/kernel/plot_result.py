@@ -120,8 +120,13 @@ def _plot_cashflow(ec_perf, component_id, output_dir, time_horizon):
 
     ax.bar(years, net_cashflow, width=0.6, color=['tab:red' if v < 0 else 'tab:green' for v in net_cashflow],
            alpha=0.6, label='Net cashflow')
-    ax.plot(years, cumulative, 'o-', color='tab:blue', linewidth=2, markersize=5, label='Cumulative cashflow')
     ax.axhline(y=0, color='black', linewidth=0.8, linestyle='--')
+
+    # Cumulative cashflow on secondary y-axis
+    ax2 = ax.twinx()
+    ax2.plot(years, cumulative, 'o-', color='tab:blue', linewidth=2, markersize=5, label='Cumulative cashflow')
+    ax2.set_ylabel('Cumulative [\u20ac]', fontsize=14, color='tab:blue')
+    ax2.tick_params(axis='y', labelsize=12, labelcolor='tab:blue')
 
     # NPV and PBP annotations
     npv = ec_perf['NPV']
@@ -139,8 +144,11 @@ def _plot_cashflow(ec_perf, component_id, output_dir, time_horizon):
 
     ax.set_title(f'Cumulative Cashflow - {component_id}', fontsize=16)
     ax.set_xlabel('Year', fontsize=14)
-    ax.set_ylabel('Amount [\u20ac]', fontsize=14)
-    ax.legend(loc='lower right', fontsize=12)
+    ax.set_ylabel('Net cashflow [\u20ac]', fontsize=14)
+    # Combined legend from both axes
+    lines1, labels1 = ax.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax.legend(lines1 + lines2, labels1 + labels2, loc='lower right', fontsize=12)
     ax.tick_params(labelsize=12)
     ax.grid(axis='y', alpha=0.3)
     plt.tight_layout()

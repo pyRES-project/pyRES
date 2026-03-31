@@ -422,12 +422,15 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
             rec_systems = [systems[sid] for sid in tech["rec_systems"]]
             rec_bess = [bess_storage[bid] for bid in tech["bess"]]
 
+            rec_users = [consumers[uid] for uid in tech.get("rec_users", [])]
+
             recs[rec_id] = Rec(
                 id=tech["id"],
                 prosumers=rec_prosumers,
                 consumers=rec_consumers,
                 rec_systems=rec_systems,
                 rec_bess=rec_bess,
+                rec_users=rec_users,
                 carriers=tech["carriers"]
             )
 
@@ -439,8 +442,11 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
                 ep = rec_obj.en_perf_evolution[carrier]
                 carrier_costs = econ['carriers_and_costs'][carrier]
 
-                # [FIX #5] Energia acquistata dalla rete a livello REC
-                purchased = float(np.sum(ep["unmet"])) / 1000 * time_step
+                # Energia acquistata e autoconsumata direttamente dalla REC:
+                # calcolata solo sul carico proprio della REC (rec_users).
+                # Se la REC non ha carichi propri, entrambi sono 0.
+                purchased = float(np.sum(ep["purchased_rec"])) / 1000 * time_step
+                self_cons_mwh = float(np.sum(ep["self_cons_rec"])) / 1000 * time_step
 
                 # [FIX #1] Supporto profili prezzi orari per REC
                 if 'price_sold_profile' in carrier_costs:
@@ -454,16 +460,17 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
 
                 if 'price_buy_profile' in carrier_costs:
                     price_buy_profile = np.array(carrier_costs['price_buy_profile'])
-                    shared_mwh = float(np.sum(ep["shared"])) / 1000 * time_step
-                    shared_savings = float(np.sum(ep["shared"] * price_buy_profile)) * time_step / 1000
-                    avg_price_buy = shared_savings / shared_mwh if shared_mwh > 0 else carrier_costs.get('price_buy', 0)
+                    if self_cons_mwh > 0:
+                        buy_revenue = float(np.sum(ep["self_cons_rec"] * price_buy_profile)) * time_step / 1000
+                        avg_price_buy = buy_revenue / self_cons_mwh
+                    else:
+                        avg_price_buy = float(np.mean(price_buy_profile))
                 else:
-                    shared_mwh = float(np.sum(ep["shared"])) / 1000 * time_step
                     avg_price_buy = carrier_costs['price_buy']
 
                 flows_and_prices[carrier] = {
                     "sold": sold_mwh,
-                    "self_cons": shared_mwh,
+                    "self_cons": self_cons_mwh,
                     "purchased": purchased,
                     "price_sold": avg_price_sold,
                     "price_buy": avg_price_buy,
