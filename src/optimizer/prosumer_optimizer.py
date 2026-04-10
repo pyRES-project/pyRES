@@ -54,6 +54,8 @@ from pymoo.operators.sampling.rnd import IntegerRandomSampling
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.termination import get_termination
+from pymoo.termination.default import DefaultMultiObjectiveTermination
+from pymoo.termination.collection import TerminationCollection
 from pymoo.optimize import minimize
 
 from src.rec_sim.PvPanels import PvPanels
@@ -563,10 +565,17 @@ class ProsumerOptimizer:
             eliminate_duplicates=True,
         )
 
+        termination = TerminationCollection(
+            DefaultMultiObjectiveTermination(
+                ftol=0.005, xtol=0.0005, n_skip=5, period=15,
+            ),
+            get_termination("n_gen", self.n_gen),
+        )
+
         self.result = minimize(
             _Problem(),
             algorithm,
-            get_termination("n_gen", self.n_gen),
+            termination,
             seed=self.seed,
             save_history=True,
             verbose=True,

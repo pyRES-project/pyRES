@@ -4,7 +4,10 @@
       "Bash(python -m pytest tests/test_integration.py -v -k \"rec\")",
       "Bash(python -m pytest tests/ -v)",
       "Bash(python3 -c \":*)",
-      "Bash(python -m pytest tests/ -q)"
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(python3 -m jupyter nbconvert --to notebook --execute Tutorial_REC1.ipynb --output /tmp/test_rec1_output.ipynb)",
+      "Bash(python3 -m jupyter nbconvert --to notebook --execute Tutorial_REC1.ipynb --output /tmp/test_rec1_output.ipynb --ExecutePreprocessor.timeout=300)",
+      "Bash(python3:*)"
     ]
   }
 }
