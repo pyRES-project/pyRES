@@ -6,6 +6,7 @@ Created on June 7 08:00:00 2025
 
 import numpy as np
 from src.rec_sim.Economics import Economics
+from src.rec_sim.Environmentals import Environmentals
 from src.rec_sim.Controller import Controller
 
 
@@ -31,7 +32,8 @@ class Rec:
         self.rec_bess = rec_bess
         self.rec_users = rec_users
         self.en_perf_evolution = {}
-        self.ec_perf={}
+        self.ec_perf = {}
+        self.env_perf = {}
 
 
 
@@ -177,6 +179,24 @@ class Rec:
                 self.en_perf_evolution[carrier]['self_cons_rec'] = np.zeros(n)
                 self.en_perf_evolution[carrier]['purchased_rec'] = np.zeros(n)
 
+        # Compute annual values (MWh) for all timeseries in each carrier
+        for carrier in self.carriers:
+            ep = self.en_perf_evolution[carrier]
+            annual = {}
+            for key, val in ep.items():
+                if key == 'soc':
+                    continue
+                arr = np.asarray(val, dtype=float)
+                annual[key] = float(np.sum(arr)) * time / 1000  # kW * h → MWh
+            # SC and SS rates (selfcons_prosumers + shared vs prod and dem)
+            sc_total = annual.get('selfcons_prosumers', 0) + annual.get('shared', 0)
+            prod = annual.get('prod', 0)
+            dem = annual.get('dem', 0)
+            annual['sc_total'] = sc_total
+            annual['sc_rate'] = (sc_total / prod * 100) if prod > 0 else 0
+            annual['ss_rate'] = (sc_total / dem * 100) if dem > 0 else 0
+            ep['annual'] = annual
+
         return self.en_perf_evolution
 
 
@@ -196,3 +216,81 @@ class Rec:
         ec_perf = calculator.compute_cashflow(time_horizon=time_horizon, tax_rate=tax_rate, int_rate=int_rate, other_capex_perc=other_capex_perc)
         self.ec_perf = ec_perf
         return ec_perf
+
+    def environmental_performance(self, time_horizon, time_step):
+        """
+
+        :param time_horizon: int--> investment time horizon (year)
+        :param time_step: float--> 1 if hourly analysis, 0.25 if quarterly analysis
+        :return: env_perf: dict with CO2, GWP, fuel savings and CRM indicators
+        """
+
+        # Only REC-owned assets (same logic as economic_performance)
+        annual_prod_kwh = 0
+        for carrier in self.carriers:
+            ep = self.en_perf_evolution.get(carrier, {})
+            annual_prod_kwh += float(np.sum(ep.get('prod_rec', 0))) * time_step
+
+        calculator = Environmentals(
+            components=self.rec_systems + self.rec_bess,
+            annual_prod_kwh=annual_prod_kwh,
+            time_horizon=time_horizon
+        )
+        env_perf = calculator.compute_environmental()
+        self.env_perf = env_perf
+        return env_perf
+
+    def summary(self):
+        """
+        Return aggregated annual KPIs (energy + economic + environmental).
+        Reads pre-computed values from en_perf_evolution['annual'],
+        ec_perf and env_perf — no recomputation needed.
+
+        :return: dict with summary indicators
+        """
+        an = self.en_perf_evolution.get('electricity', {}).get('annual', {})
+        ec = self.ec_perf or {}
+        ev = self.env_perf or {}
+        n_members, _, _ = self.compute_members()
+
+        result = {'Entity': f"{self.id} ({n_members} members)"}
+
+        # Energy annual (MWh/y)
+        for key, label in [
+            ('prod', 'Production [MWh/y]'),
+            ('prod_rec', 'Production REC [MWh/y]'),
+            ('dem', 'Demand [MWh/y]'),
+            ('shared', 'Shared energy [MWh/y]'),
+            ('selfcons_prosumers', 'SC prosumers [MWh/y]'),
+            ('surplus', 'Surplus [MWh/y]'),
+            ('unmet', 'Purchased [MWh/y]'),
+        ]:
+            if key in an:
+                result[label] = round(an[key], 1)
+
+        result['SC rate [%]'] = round(an.get('sc_rate', 0), 1)
+        result['SS rate [%]'] = round(an.get('ss_rate', 0), 1)
+
+        # Economic
+        for key, label in [
+            ('capex', 'CAPEX [EUR]'), ('NPV', 'NPV [EUR]'), ('pbp', 'PBP [y]'),
+        ]:
+            result[label] = round(ec.get(key, 0), 1 if key == 'pbp' else 0)
+
+        # Environmental
+        for key, label in [
+            ('total_pv_kwp', 'PV [kWp]'), ('total_bess_kwh', 'BESS [kWh]'),
+            ('co2_avoided_annual_t', 'CO2 avoided [tCO2/y]'),
+            ('co2_avoided_lifetime_t', 'CO2 avoided lifetime [tCO2]'),
+            ('gwp_embodied_t', 'GWP embodied [tCO2-eq]'),
+            ('gwp_net_t', 'GWP net [tCO2-eq]'),
+            ('co2_payback_years', 'CO2 payback [y]'),
+            ('lifecycle_ef', 'Lifecycle EF [gCO2/kWh]'),
+            ('crm_pv_total_kg', 'CRM PV [kg]'),
+            ('crm_bess_total_kg', 'CRM BESS [kg]'),
+            ('crm_total_kg', 'CRM total [kg]'),
+        ]:
+            val = ev.get(key, 0)
+            result[label] = round(val, 2 if 'co2_avoided' in key else 1)
+
+        return result

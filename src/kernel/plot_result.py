@@ -29,6 +29,8 @@ def filter_by_period(df, period,year):
 def to_df(en_perf_evolution, timeline):
     clean_dict = {}
     for k, v in en_perf_evolution.items():
+        if k == 'annual':
+            continue
         if isinstance(v, pd.Series):
             clean_dict[k] = v.values
         elif isinstance(v, (list, np.ndarray)):

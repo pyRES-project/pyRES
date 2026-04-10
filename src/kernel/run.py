@@ -411,6 +411,11 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
                 annual_en_flows_and_price=flows_and_prices
             )
 
+            pros_obj.environmental_performance(
+                time_horizon=config_data['simulation']["time_horizon"],
+                time_step=time_step
+            )
+
     # Build and simulate RECs
     recs = {}
     for rec in config_data["rec"]:
@@ -486,6 +491,11 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
                 annual_en_flows_and_price=flows_and_prices
             )
 
+            rec_obj.environmental_performance(
+                time_horizon=config_data['simulation']["time_horizon"],
+                time_step=time_step
+            )
+
     return prosumers, recs
 
 
@@ -498,11 +508,12 @@ def export_results(config_data, prosumers, recs, start_date, output_dir):
 
     :return: tuple (rec_result, pros_result, rec_result_ec, pros_result_ec)
     """
-    # REC energy performance CSV
+    # REC energy performance CSV (exclude 'annual' summary dict)
     rec_dfs = []
     for rec_id, rec_obj in recs.items():
         for carrier, perf_dict in rec_obj.en_perf_evolution.items():
-            temp_df = pd.DataFrame(perf_dict)
+            ts_data = {k: v for k, v in perf_dict.items() if k != 'annual'}
+            temp_df = pd.DataFrame(ts_data)
             temp_df.columns = [f"{rec_id}_{carrier}_{col}" for col in temp_df.columns]
             rec_dfs.append(temp_df)
     rec_result = pd.concat(rec_dfs, axis=1)
@@ -516,11 +527,12 @@ def export_results(config_data, prosumers, recs, start_date, output_dir):
     rec_result.insert(0, 'date', timeline)
     rec_result.to_csv(f'{output_dir}/recs_en_perf_evolution_kW.csv', index=False)
 
-    # Prosumer energy performance CSV
+    # Prosumer energy performance CSV (exclude 'annual' summary dict)
     pros_dfs = []
     for pros_id, pros_obj in prosumers.items():
         for carrier, perf_dict in pros_obj.en_perf_evolution.items():
-            temp_df = pd.DataFrame(perf_dict)
+            ts_data = {k: v for k, v in perf_dict.items() if k != 'annual'}
+            temp_df = pd.DataFrame(ts_data)
             temp_df.columns = [f"{pros_id}_{carrier}_{col}" for col in temp_df.columns]
             pros_dfs.append(temp_df)
     pros_result = pd.concat(pros_dfs, axis=1)
@@ -580,6 +592,110 @@ def export_results(config_data, prosumers, recs, start_date, output_dir):
     df = pd.DataFrame(all_data_pros)
     df.to_excel(f'{output_dir}/prosumers_ec_perf_€.xlsx', index=False)
     pros_result_ec = df
+
+    # Summary tables (energy + economic + environmental aggregated KPIs)
+    time_step_h = time_step_to_hour_fraction(config_data['simulation']['time_step'])
+
+    prosumer_summary = [pros_obj.summary() for pros_obj in prosumers.values()]
+    rec_summary = [rec_obj.summary() for rec_obj in recs.values()]
+
+    # Aggregated environmental (all prosumer + REC components)
+    all_systems = []
+    all_bess_agg = []
+    total_prod_kwh = 0
+    for pros_obj in prosumers.values():
+        all_systems.extend(pros_obj.systems)
+        all_bess_agg.extend(pros_obj.bess)
+        for carrier in pros_obj.carriers:
+            ep = pros_obj.en_perf_evolution.get(carrier, {})
+            total_prod_kwh += float(np.sum(ep.get('prod', 0))) * time_step_h
+    for rec_obj in recs.values():
+        all_systems.extend(rec_obj.rec_systems)
+        all_bess_agg.extend(rec_obj.rec_bess)
+        for carrier in rec_obj.carriers:
+            ep = rec_obj.en_perf_evolution.get(carrier, {})
+            total_prod_kwh += float(np.sum(ep.get('prod_rec', 0))) * time_step_h
+
+    from src.rec_sim.Environmentals import Environmentals
+    agg_calc = Environmentals(
+        components=all_systems + all_bess_agg,
+        annual_prod_kwh=total_prod_kwh,
+        time_horizon=config_data['simulation']['time_horizon']
+    )
+    agg_ev = agg_calc.compute_environmental()
+
+    with pd.ExcelWriter(f'{output_dir}/environmental_summary.xlsx',
+                         engine='openpyxl') as writer:
+        pd.DataFrame(prosumer_summary).to_excel(
+            writer, sheet_name='Prosumer Summary', index=False)
+        pd.DataFrame(rec_summary).to_excel(
+            writer, sheet_name='REC Summary', index=False)
+
+        # Aggregated environmental table
+        env_cols = ['Entity', 'PV [kWp]', 'BESS [kWh]', 'CO2 avoided [tCO2/y]',
+                    'GWP embodied [tCO2-eq]', 'GWP net [tCO2-eq]',
+                    'CO2 payback [y]', 'Lifecycle EF [gCO2/kWh]', 'CRM total [kg]']
+        all_rows = prosumer_summary + rec_summary
+        sum_cols = ['PV [kWp]', 'BESS [kWh]', 'CO2 avoided [tCO2/y]',
+                    'GWP embodied [tCO2-eq]', 'CRM total [kg]']
+        total_row = {'Entity': 'TOTAL'}
+        for col in sum_cols:
+            total_row[col] = round(sum(r.get(col, 0) for r in all_rows), 2)
+        total_row['GWP net [tCO2-eq]'] = round(agg_ev['gwp_net_t'], 1)
+        total_row['CO2 payback [y]'] = round(agg_ev['co2_payback_years'], 1)
+        total_row['Lifecycle EF [gCO2/kWh]'] = round(agg_ev['lifecycle_ef'], 1)
+
+        env_data = [{c: r.get(c, '') for c in env_cols} for r in all_rows]
+        env_data.append({c: total_row.get(c, '') for c in env_cols})
+        pd.DataFrame(env_data).to_excel(
+            writer, sheet_name='Aggregated Environmental', index=False)
+
+        # GWP Assessment (aggregated)
+        gwp_data = {
+            'Component': ['PV modules', 'BOS', 'Inverter (+ repl.)',
+                          'BESS (+ repl.)', 'Total embodied',
+                          'Avoided (lifetime)', 'Net balance'],
+            'tCO2-eq': [agg_ev['gwp_pv_modules_t'], agg_ev['gwp_bos_t'],
+                        agg_ev['gwp_inverter_t'], agg_ev['gwp_bess_t'],
+                        agg_ev['gwp_embodied_t'], agg_ev['co2_avoided_lifetime_t'],
+                        agg_ev['gwp_net_t']],
+        }
+        pd.DataFrame(gwp_data).to_excel(
+            writer, sheet_name='GWP Assessment', index=False)
+
+        # CRM tables (aggregated)
+        crm_pv_rows = [{'Material': m, 'Intensity': f"{i['intensity']} {i['unit']}/kWp",
+                         'Total': f"{i['total_raw']:,.1f} {i['unit']}",
+                         'Source': i['source']}
+                        for m, i in agg_ev['crm_pv'].items()]
+        crm_bess_rows = [{'Material': m, 'Intensity': f"{i['intensity']} {i['unit']}/kWh",
+                           'Total': f"{i['total_raw']:,.1f} {i['unit']}",
+                           'Source': i['source']}
+                          for m, i in agg_ev['crm_bess'].items()]
+        pd.DataFrame(crm_pv_rows).to_excel(
+            writer, sheet_name='CRM - PV', index=False)
+        pd.DataFrame(crm_bess_rows).to_excel(
+            writer, sheet_name='CRM - BESS', index=False)
+
+        # Key indicators (aggregated)
+        indicators = {
+            'Indicator': ['Total PV capacity', 'Total BESS capacity',
+                          'CO2 avoided (annual)', 'CO2 avoided (lifetime)',
+                          'CO2 payback time', 'Lifecycle emission factor',
+                          'Grid emission factor', 'Net GWP balance',
+                          'Total CRM (PV)', 'Total CRM (BESS)', 'Total CRM'],
+            'Value': [agg_ev['total_pv_kwp'], agg_ev['total_bess_kwh'],
+                      agg_ev['co2_avoided_annual_t'], agg_ev['co2_avoided_lifetime_t'],
+                      agg_ev['co2_payback_years'], agg_ev['lifecycle_ef'],
+                      agg_ev['co2_grid_factor'], agg_ev['gwp_net_t'],
+                      agg_ev['crm_pv_total_kg'], agg_ev['crm_bess_total_kg'],
+                      agg_ev['crm_total_kg']],
+            'Unit': ['kWp', 'kWh', 'tCO2/y', 'tCO2',
+                     'years', 'gCO2-eq/kWh', 'gCO2/kWh', 'tCO2-eq',
+                     'kg', 'kg', 'kg'],
+        }
+        pd.DataFrame(indicators).to_excel(
+            writer, sheet_name='Key Indicators', index=False)
 
     return timeline, rec_result, pros_result, rec_result_ec, pros_result_ec
 
