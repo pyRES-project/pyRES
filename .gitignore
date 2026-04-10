@@ -12,5 +12,13 @@ __pycache__/
 .venv/
 venv/
 
+# IDE / editor
+.idea/
+*.code-workspace
+.vscode/
+
+# pytest
+.pytest_cache/
+
 # OS files
 .DS_Store
