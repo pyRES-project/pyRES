@@ -1,0 +1,291 @@
+<html><head><meta charset="utf-8"><title>Environmental Summary</title></head><body>
+<style>
+.summary-table { border-collapse: collapse; font-size: 13px; margin: 10px 0; }
+.summary-table th { background-color: #2c3e50; color: white; padding: 8px 12px; text-align: center; }
+.summary-table td { padding: 6px 12px; text-align: right; border-bottom: 1px solid #ddd; }
+.summary-table td:first-child { text-align: left; font-weight: bold; }
+.summary-table tr:hover { background-color: #f5f5f5; }
+.section-title { font-size: 15px; font-weight: bold; margin-top: 16px; margin-bottom: 4px; }
+</style>
+<div class="section-title">Prosumer Performance Summary</div><table border="1" class="dataframe summary-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Entity</th>
+      <th>Production [MWh/y]</th>
+      <th>Demand [MWh/y]</th>
+      <th>Self-consumption [MWh/y]</th>
+      <th>Surplus [MWh/y]</th>
+      <th>Purchased [MWh/y]</th>
+      <th>SC rate [%]</th>
+      <th>SS rate [%]</th>
+      <th>CAPEX [EUR]</th>
+      <th>NPV [EUR]</th>
+      <th>PBP [y]</th>
+      <th>CO2 avoided [tCO2/y]</th>
+      <th>CRM total [kg]</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>prosumer1</td>
+      <td>119.3</td>
+      <td>350.0</td>
+      <td>93.9</td>
+      <td>25.4</td>
+      <td>256.4</td>
+      <td>78.7</td>
+      <td>26.8</td>
+      <td>129,311.0</td>
+      <td>-592,205.0</td>
+      <td>-3.5</td>
+      <td>30.5</td>
+      <td>3,493.4</td>
+    </tr>
+    <tr>
+      <td>prosumer2</td>
+      <td>62.3</td>
+      <td>180.8</td>
+      <td>48.8</td>
+      <td>13.5</td>
+      <td>132.0</td>
+      <td>78.4</td>
+      <td>27.0</td>
+      <td>63,724.0</td>
+      <td>-294,433.0</td>
+      <td>-3.5</td>
+      <td>15.9</td>
+      <td>1,785.2</td>
+    </tr>
+  </tbody>
+</table><div class="section-title">REC Performance Summary</div><table border="1" class="dataframe summary-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Entity</th>
+      <th>Production [MWh/y]</th>
+      <th>Demand [MWh/y]</th>
+      <th>Shared energy [MWh/y]</th>
+      <th>SC prosumers [MWh/y]</th>
+      <th>Surplus [MWh/y]</th>
+      <th>Purchased [MWh/y]</th>
+      <th>SC rate [%]</th>
+      <th>SS rate [%]</th>
+      <th>CAPEX [EUR]</th>
+      <th>NPV [EUR]</th>
+      <th>PBP [y]</th>
+      <th>CO2 avoided [tCO2/y]</th>
+      <th>CRM total [kg]</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>rec1 (52 members)</td>
+      <td>230.0</td>
+      <td>727.5</td>
+      <td>56.5</td>
+      <td>142.8</td>
+      <td>30.7</td>
+      <td>528.7</td>
+      <td>86.6</td>
+      <td>27.4</td>
+      <td>54,129.0</td>
+      <td>-52,985.0</td>
+      <td>-629.8</td>
+      <td>58.9</td>
+      <td>6,693.5</td>
+    </tr>
+  </tbody>
+</table>
+<div style="margin-top:20px; padding:12px 16px; background:#e8f5e9; border-left:4px solid #4caf50; border-radius:4px;">
+  <div style="font-size:14px; font-weight:bold; color:#2e7d32;">Environmental Impact Summary</div>
+  <table style="margin-top:8px; font-size:13px;">
+    <tr><td colspan="3" style="padding:2px 0 6px 0; font-weight:bold; color:#555;">CO2 Emissions Avoided (operational)</td></tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Grid emission factor (Italy avg.)</td>
+      <td colspan="2"><b>256 gCO2/kWh</b></td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Total REC renewable production</td>
+      <td colspan="2"><b>230.0 MWh/year</b></td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">CO2 avoided (annual)</td>
+      <td><b>58.87 tCO2/year</b></td>
+      <td>1,177.4 tCO2 over 20 years</td>
+    </tr>
+    <tr><td colspan="3" style="padding:10px 0 6px 0; font-weight:bold; color:#555;">Fossil Fuel Savings (Italian grid mix)</td></tr>
+    
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Natural gas</td>
+      <td style="padding:3px 8px;"><b>21,075 m³/year</b></td>
+      <td style="padding:3px 8px;">421,498 m³ over 20 years</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Oil / petroleum products</td>
+      <td style="padding:3px 8px;"><b>2,024 kg/year</b></td>
+      <td style="padding:3px 8px;">40,480 kg over 20 years</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Coal</td>
+      <td style="padding:3px 8px;"><b>2,990 kg/year</b></td>
+      <td style="padding:3px 8px;">59,800 kg over 20 years</td>
+    </tr>
+  </table>
+</div>
+
+<div style="margin-top:20px; padding:12px 16px; background:#fff3e0; border-left:4px solid #ff9800; border-radius:4px;">
+  <div style="font-size:14px; font-weight:bold; color:#e65100;">GWP Lifecycle Assessment (Global Warming Potential)</div>
+  <p style="font-size:11px; color:#666; margin:4px 0 10px 0;">
+    Cradle-to-gate embodied emissions vs. avoided grid emissions over 20-year horizon.<br>
+    Sources: Frischknecht et al., IEA PVPS Task 12 (2020); Dai et al., ANL/ESD-19/2 (2019); Stolz et al., IEA PVPS Task 12 (2018).
+  </p>
+  <table style="font-size:13px;">
+    <tr><td colspan="3" style="padding:2px 0 6px 0; font-weight:bold; color:#555;">Embodied Emissions (manufacturing)</td></tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">PV modules (231.0 kWp × 1150 kg CO₂-eq/kWp)</td>
+      <td colspan="2"><b>265.63 tCO₂-eq</b></td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Balance of System (BOS)</td>
+      <td colspan="2"><b>34.65 tCO₂-eq</b></td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Inverter (initial + 1 replacement)</td>
+      <td colspan="2"><b>23.10 tCO₂-eq</b></td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">BESS (30.7 kWh × 120 kg CO₂-eq/kWh, + 0 repl.)</td>
+      <td colspan="2"><b>3.69 tCO₂-eq</b></td>
+    </tr>
+    <tr style="border-top:2px solid #e65100;">
+      <td style="padding:6px 16px 3px 0; font-weight:bold;">Total embodied emissions</td>
+      <td colspan="2" style="font-weight:bold; font-size:14px;">327.06 tCO₂-eq</td>
+    </tr>
+    <tr><td colspan="3" style="padding:10px 0 6px 0; font-weight:bold; color:#555;">Lifecycle Balance (20 years)</td></tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Avoided grid emissions</td>
+      <td colspan="2"><b>1,177.4 tCO₂</b></td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Embodied emissions</td>
+      <td colspan="2"><b>327.06 tCO₂-eq</b></td>
+    </tr>
+    <tr style="border-top:2px solid #e65100;">
+      <td style="padding:6px 16px 3px 0; font-weight:bold;">Net CO₂ balance</td>
+      <td colspan="2" style="font-weight:bold; font-size:14px; color:#2e7d32;">-850.3 tCO₂-eq (net benefit)</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">CO₂ payback time</td>
+      <td colspan="2"><b>5.6 years</b></td>
+    </tr>
+    <tr>
+      <td style="padding:3px 16px 3px 0;">Lifecycle emission factor</td>
+      <td colspan="2"><b>71.1 gCO₂-eq/kWh</b> <span style="font-size:11px;color:#888;">(vs. grid: 256 gCO₂/kWh)</span></td>
+    </tr>
+  </table>
+</div>
+
+<div style="margin-top:20px; padding:12px 16px; background:#e3f2fd; border-left:4px solid #1976d2; border-radius:4px;">
+  <div style="font-size:14px; font-weight:bold; color:#1565c0;">Critical Raw Materials (LCA-based estimates)</div>
+  <p style="font-size:11px; color:#666; margin:4px 0 10px 0;">
+    Cradle-to-gate material intensities from peer-reviewed LCA studies.
+    Values may vary with module/cell technology and supplier.
+    <b>Total CRM: 6,693.5 kg</b> (PV: 6,602.9 kg + BESS: 90.6 kg)
+  </p>
+  <div style="font-size:13px; font-weight:bold; color:#333; margin-bottom:4px;">
+    PV Systems (c-Si) &mdash; 231.0 kWp installed
+  </div>
+  <table style="font-size:13px; margin-bottom:12px;">
+    <tr style="border-bottom:1px solid #ccc;">
+      <td style="padding:2px 12px 2px 0; font-weight:bold; color:#555;">Material</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Intensity</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Total</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Source</td>
+    </tr>
+    
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Silicon (met.)</td>
+      <td style="padding:2px 8px; text-align:right;">3.5 kg/kWp</td>
+      <td style="padding:2px 8px; text-align:right;"><b>808.4 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">IEA PVPS Task 12 (2020)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Silver</td>
+      <td style="padding:2px 8px; text-align:right;">16.0 g/kWp</td>
+      <td style="padding:2px 8px; text-align:right;"><b>3,695.7 g</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">ITRPV Roadmap (2023)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Copper</td>
+      <td style="padding:2px 8px; text-align:right;">4.5 kg/kWp</td>
+      <td style="padding:2px 8px; text-align:right;"><b>1,039.4 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">IEA PVPS Task 12 (2020)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Aluminium</td>
+      <td style="padding:2px 8px; text-align:right;">20.0 kg/kWp</td>
+      <td style="padding:2px 8px; text-align:right;"><b>4,619.6 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">IEA PVPS Task 12 (2020)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Lead (solder)</td>
+      <td style="padding:2px 8px; text-align:right;">0.45 kg/kWp</td>
+      <td style="padding:2px 8px; text-align:right;"><b>103.9 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">Fthenakis et al. (2012)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Tin (solder)</td>
+      <td style="padding:2px 8px; text-align:right;">0.12 kg/kWp</td>
+      <td style="padding:2px 8px; text-align:right;"><b>27.7 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">Fthenakis et al. (2012)</td>
+    </tr>
+  </table>
+  <div style="font-size:13px; font-weight:bold; color:#333; margin-bottom:4px;">
+    BESS (Li-ion NMC) &mdash; 30.7 kWh installed
+  </div>
+  <table style="font-size:13px;">
+    <tr style="border-bottom:1px solid #ccc;">
+      <td style="padding:2px 12px 2px 0; font-weight:bold; color:#555;">Material</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Intensity</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Total</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Source</td>
+    </tr>
+    
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Lithium (Li₂CO₃ eq.)</td>
+      <td style="padding:2px 8px; text-align:right;">0.6 kg/kWh</td>
+      <td style="padding:2px 8px; text-align:right;"><b>18.4 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">Dai et al., ANL (2019)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Cobalt</td>
+      <td style="padding:2px 8px; text-align:right;">0.2 kg/kWh</td>
+      <td style="padding:2px 8px; text-align:right;"><b>6.1 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">Dai et al., ANL (2019)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Nickel</td>
+      <td style="padding:2px 8px; text-align:right;">0.4 kg/kWh</td>
+      <td style="padding:2px 8px; text-align:right;"><b>12.3 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">Dai et al., ANL (2019)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Manganese</td>
+      <td style="padding:2px 8px; text-align:right;">0.15 kg/kWh</td>
+      <td style="padding:2px 8px; text-align:right;"><b>4.6 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">EU JRC CRM Report (2020)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Graphite (anode)</td>
+      <td style="padding:2px 8px; text-align:right;">0.8 kg/kWh</td>
+      <td style="padding:2px 8px; text-align:right;"><b>24.6 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">Dai et al., ANL (2019)</td>
+    </tr>
+    <tr>
+      <td style="padding:2px 12px 2px 0;">Copper</td>
+      <td style="padding:2px 8px; text-align:right;">0.8 kg/kWh</td>
+      <td style="padding:2px 8px; text-align:right;"><b>24.6 kg</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">IRENA (2023)</td>
+    </tr>
+  </table>
+</div>
+</body></html>
