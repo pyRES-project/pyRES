@@ -182,18 +182,18 @@ class Rec:
 
 
 
-    def economic_performance(self, time_horizon, tax_rate, int_rate, other_capex_perc, annual_en_flows_and_price):
+    def economic_performance(self, time_horizon, tax_rate, int_rate, other_capex_perc, en_flows_and_prices):
         """
 
         :param time_horizon: int--> investment time horizon (year)
         :param tax_rate: float--> tax on revenues from sale e.g 0.2
         :param int_rate: float-->interest rate for calculating NPV e.g 0.03
         :param other_capex_perc: float--> list of other capex as percentage of total capex e.g [0.2,0.5]
-        :param annual_en_flows_and_price: dict--> e.g. annnual_en_flows={'electricity':{'sold':100,'self_cons':200,'purchased':10,'price_sold':2,'price_buy':3,'decay':0.02}}
+        :param en_flows_and_prices: dict--> e.g. en_flows_and_prices={'electricity':{'sold':100,'self_cons':200,'purchased':10,'price_sold':2,'price_buy':3,'decay':0.02}}
         :return: ec_perf: dict : e.g. ec_perf={'NPV':value,'pbp':value,'capex':value,'rev_from_sale':r1,'rev_savings':r2,'rev_incentives':r3,'rev_others':r4,'cost_resources':c1,'cost_opex':c2,'cost_taxes':c3,'cost_taxes_on_sale':c4,'cost_others':c5}
         """
 
-        calculator = Economics(components=self.rec_systems+self.rec_bess, annual_en_flows_and_prices=annual_en_flows_and_price)
+        calculator = Economics(components=self.rec_systems+self.rec_bess, en_flows_and_prices=en_flows_and_prices)
         ec_perf = calculator.compute_cashflow(time_horizon=time_horizon, tax_rate=tax_rate, int_rate=int_rate, other_capex_perc=other_capex_perc)
         self.ec_perf = ec_perf
         return ec_perf

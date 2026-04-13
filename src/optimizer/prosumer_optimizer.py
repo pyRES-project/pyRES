@@ -126,8 +126,7 @@ DEFAULT_PROSUMER_ECONOMICS = {
     'int_rate': 0.05,
     'price_buy': 250,          # €/MWh
     'price_sold': 104,         # €/MWh
-    'decay': 0.02,
-    'prod_degradation': 0.005,
+    'decay': 0.005,
 }
 
 
@@ -466,13 +465,12 @@ class ProsumerOptimizer:
                 'price_sold': pe['price_sold'],
                 'price_buy': pe['price_buy'],
                 'decay': pe['decay'],
-                'prod_degradation': pe.get('prod_degradation', 0.0),
             }
         }
 
         ec_perf = Economics(
             components=components,
-            annual_en_flows_and_prices=flows,
+            en_flows_and_prices=flows,
         ).compute_cashflow(
             time_horizon=self.time_horizon,
             tax_rate=pe['tax_rate'],
@@ -739,11 +737,10 @@ class ProsumerOptimizer:
                 'price_sold': pe['price_sold'],
                 'price_buy': pe['price_buy'],
                 'decay': pe['decay'],
-                'prod_degradation': pe.get('prod_degradation', 0.0),
             }
         }
         ec_perf = Economics(
-            components=components, annual_en_flows_and_prices=flows,
+            components=components, en_flows_and_prices=flows,
         ).compute_cashflow(
             time_horizon=self.time_horizon, tax_rate=pe['tax_rate'], int_rate=pe['int_rate'])
         ec_perf['NPV_incremental'] = ec_perf['NPV'] - self._baseline_npv

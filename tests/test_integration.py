@@ -128,13 +128,12 @@ class TestProsumerIntegration:
                 'purchased': float(np.sum(ep['unmet'])) / 1000 * TIME_STEP_15MIN,
                 'price_sold': 104,
                 'price_buy': 130,
-                'decay': 0.02,
-                'prod_degradation': 0.005,
+                'decay': 0.005,
             }
         }
         ec = pros.economic_performance(
             time_horizon=20, tax_rate=0.2, int_rate=0.03,
-            other_capex_perc=[0], annual_en_flows_and_price=flows,
+            other_capex_perc=[0], en_flows_and_prices=flows,
         )
         assert 'NPV' in ec
         assert 'pbp' in ec
@@ -241,13 +240,12 @@ class TestRecIntegration:
                 'purchased': 0.0,  # La REC non acquista energia dalla rete
                 'price_sold': 104,
                 'price_buy': 130,
-                'decay': 0.02,
-                'prod_degradation': 0.005,
+                'decay': 0.005,
             }
         }
         ec = rec.economic_performance(
             time_horizon=20, tax_rate=0.2, int_rate=0.03,
-            other_capex_perc=[0.02], annual_en_flows_and_price=flows,
+            other_capex_perc=[0.02], en_flows_and_prices=flows,
         )
         assert 'NPV' in ec
         assert 'cost_bess_replacement' in ec

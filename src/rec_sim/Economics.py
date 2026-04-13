@@ -9,24 +9,23 @@ import numpy as np
 import numpy_financial as npf
 
 class Economics:
-    def __init__(self, components, annual_en_flows_and_prices):
+    def __init__(self, components, en_flows_and_prices):
         """
         :param components: list of objects by System or Bess
-        :param annual_en_flows_and_prices: dict : e.g. annual_en_flows_and_prices={
+        :param en_flows_and_prices: dict : e.g. annual_en_flows_and_prices={
             'electricity': {
                 'sold': 100,        # MWh/year sold to the grid (year 1 baseline)
                 'self_cons': 200,   # MWh/year self-consumed (year 1 baseline)
                 'purchased': 50,    # MWh/year purchased from the grid (year 1 baseline)
                 'price_sold': 104,  # €/MWh selling price
                 'price_buy': 130,   # €/MWh buying price (also used for self-cons savings)
-                'decay': 0.02,      # annual price decay rate
-                'prod_degradation': 0.005,  # annual production degradation (PV aging)
+                'decay': 0.005,     # annual production degradation rate
             }
         }
         """
 
         self.components = components
-        self.annual_en_flows_and_prices = annual_en_flows_and_prices
+        self.annual_en_flows_and_prices = en_flows_and_prices
 
     def compute_cashflow(self,time_horizon,tax_rate ,int_rate, other_capex_perc=[0]):
         """
@@ -87,7 +86,7 @@ class Economics:
         c5[0] = 0
 
         # Pre-calcolo schedule sostituzione componenti
-        battery_replacement_schedule = {}
+        replacement_schedule = {}
         for component in self.components:
             if component.lifetime_years is not None:
                 lifetime = component.lifetime_years
@@ -98,7 +97,7 @@ class Economics:
                     year += lifetime
                 if replacement_years:
                     replacement_cost = component.cap_cost_unit * component.cap
-                    battery_replacement_schedule[component.id] = {
+                    replacement_schedule[component.id] = {
                         'years': replacement_years,
                         'cost': replacement_cost
                     }
@@ -117,44 +116,14 @@ class Economics:
 
             for key in self.annual_en_flows_and_prices:
                 flow = self.annual_en_flows_and_prices[key]
-                price_decay = (1 - flow['decay']) ** (year - 1)
+                prod_decay = (1 - flow['decay']) ** (year - 1)
 
-                # [FIX #4] Degradazione della produzione PV: i flussi energetici
-                # (sold, self_cons) decrescono annualmente per invecchiamento dei moduli.
-                # Il parametro 'prod_degradation' rappresenta il tasso di degradazione
-                # annuale della produzione (es. 0.005 = 0.5%/anno per c-Si).
-                # Se non fornito, i flussi restano costanti (comportamento retrocompatibile).
-                prod_degradation = flow.get('prod_degradation', 0.0)
-                prod_decay = (1 - prod_degradation) ** (year - 1)
-
-                # Flussi energetici aggiustati per degradazione PV e BESS
                 sold_year = flow['sold'] * prod_decay
                 self_cons_year = flow['self_cons'] * prod_decay
-                purchased_year = flow['purchased']
 
-                # [FIX #5] Se la produzione cala per degradazione, l'energia acquistata
-                # dalla rete aumenta proporzionalmente (la domanda è costante).
-                # L'incremento di purchased è la differenza tra il sold+self_cons del
-                # primo anno e quello degradato.
-                if prod_degradation > 0:
-                    original_total_prod = flow['sold'] + flow['self_cons']
-                    degraded_total_prod = sold_year + self_cons_year
-                    additional_purchased = original_total_prod - degraded_total_prod
-                    purchased_year += additional_purchased
-
-                # Ricavi dalla vendita di energia alla rete
-                # r1 = energia venduta × prezzo di vendita × decadimento prezzo
-                r1_i += sold_year * flow['price_sold'] * price_decay
-
-                # Ricavi dal risparmio per autoconsumo (energia non acquistata dalla rete)
-                # r2 = energia autoconsumata × prezzo di acquisto evitato × decadimento prezzo
-                r2_i += self_cons_year * flow['price_buy'] * price_decay
-
-                # [FIX #2] Costo dell'energia acquistata dalla rete CON decadimento prezzi.
-                # Nel codice originale il decay era applicato solo ai ricavi (r1, r2) ma
-                # non al costo di acquisto (c1), creando un'incoerenza: se i prezzi calano,
-                # calano sia per la vendita sia per l'acquisto.
-                c1_i += purchased_year * flow['price_buy'] * price_decay
+                r1_i += float(np.sum(sold_year * flow['price_sold']))
+                r2_i += float(np.sum(self_cons_year * flow['price_buy']))
+                c1_i += float(np.sum(flow['purchased'] * flow['price_buy']))
 
             c4_i = r1_i * tax_rate
 
@@ -172,7 +141,7 @@ class Economics:
 
             # Costo sostituzione batteria
             c6_i = 0
-            for batt_id, schedule in battery_replacement_schedule.items():
+            for batt_id, schedule in replacement_schedule.items():
                 if year in schedule['years']:
                     c6_i += schedule['cost']
             c6_replacement[year] = c6_i

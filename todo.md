@@ -1,8 +1,7 @@
-bisogna testare i risultati e inserire una parte di validation dei modelli
-e anche delle varie classi
+1) testare i risultati e inserire una parte di validation dei modelli e anche delle classi
+2) analizzare i test e capire se ne servono altri
+3) capire come gestire l'ottimizzazione e tutorial 
+4) ricontrollare la parte di prestazioni ambientali
+ 
 
-va allineato il codice dei membri REC
-va ridefinito come vengono calcolati i flussi energetici della rec e 
-le relative prestazioni economiche e ambientali
 
-va messo a posto il secondo tutorial con l'ottimizzatore
