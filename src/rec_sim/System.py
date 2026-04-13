@@ -8,7 +8,8 @@ Created on June 7 08:00:00 2025
 class System():
     def __init__(self, id, carriers, cap, cap_cost, opex, opex_cost, inc_year, inc_start_end, tax_year,
                  other_cost={'item1': {'unit': 0, 'cost_unit': 0, 'dur': [0, 0]}},
-                 other_rev={'item1': {'unit': 0, 'rev_unit': 0, 'dur': [0, 0]}}):
+                 other_rev={'item1': {'unit': 0, 'rev_unit': 0, 'dur': [0, 0]}},
+                 lifetime_years=None):
 
         """
 
@@ -58,4 +59,5 @@ class System():
         self.tax_year = tax_year
         self.other_cost = other_cost
         self.other_rev = other_rev
+        self.lifetime_years = lifetime_years
         self.en_perf_evolution = {}

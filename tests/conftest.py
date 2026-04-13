@@ -59,7 +59,6 @@ def pv_array_3x2():
         mismatch_loss=0.02,
         wiring_loss=0.015,
         soiling_loss=0.03,
-        annual_degradation=0.005,
     )
 
 
@@ -79,7 +78,6 @@ def pv_no_losses():
         mismatch_loss=0.0,
         wiring_loss=0.0,
         soiling_loss=0.0,
-        annual_degradation=0.0,
     )
 
 
@@ -91,15 +89,11 @@ def bess_default():
     """Single battery module with default parameters."""
     return Bess(
         id='bess_test',
-        cap_module=2.56,
-        v=25.6,
-        i_max=100,
-        i_min=5,
+        cap=2.56,
+        c_rate=1.0,
         soc_in=0.5,
         soc_max=0.8,
         soc_min=0.2,
-        n_series=1,
-        n_parallel=1,
         cap_cost=720,
         opex_cost=20,
         inc_year=0,
@@ -108,24 +102,19 @@ def bess_default():
         eta_charge=0.95,
         eta_discharge=0.95,
         self_discharge_rate_per_hour=0.00004,
-        min_energy_threshold=0.01,
     )
 
 
 @pytest.fixture
 def bess_ideal():
-    """Ideal battery with no losses (eta=1, no self-discharge, no threshold)."""
+    """Ideal battery with no losses (eta=1, no self-discharge)."""
     return Bess(
         id='bess_ideal',
-        cap_module=10.0,
-        v=50.0,
-        i_max=200,
-        i_min=1,
+        cap=10.0,
+        c_rate=1.0,
         soc_in=0.5,
         soc_max=1.0,
         soc_min=0.0,
-        n_series=1,
-        n_parallel=1,
         cap_cost=500,
         opex_cost=10,
         inc_year=0,
@@ -134,32 +123,24 @@ def bess_ideal():
         eta_charge=1.0,
         eta_discharge=1.0,
         self_discharge_rate_per_hour=0.0,
-        min_energy_threshold=0.0,
-        v_min=None,
-        c_rate_max=None,
     )
 
 
 @pytest.fixture
-def bess_with_v_soc():
-    """Battery with V(SOC) model enabled."""
+def bess_with_c_rate():
+    """Battery with custom C-rate."""
     return Bess(
-        id='bess_vsoc',
-        cap_module=5.0,
-        v=25.0,
-        i_max=100,
-        i_min=5,
+        id='bess_crate',
+        cap=5.0,
+        c_rate=0.5,
         soc_in=0.5,
         soc_max=0.9,
         soc_min=0.1,
-        n_series=1,
-        n_parallel=1,
         cap_cost=720,
         opex_cost=20,
         inc_year=0,
         inc_start_end=[0, 0],
         tax_year=0,
-        v_min=20.0,
         eta_charge=0.95,
         eta_discharge=0.95,
     )

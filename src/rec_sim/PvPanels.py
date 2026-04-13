@@ -33,11 +33,7 @@ class PvPanels(System):
                  wiring_loss=0.015,
                  # [MIGLIORAMENTO #7] Perdite per soiling (sporcizia): accumulo di polvere, polline,
                  # escrementi di uccelli sulla superficie dei moduli (tipicamente 2-5% annuo)
-                 soiling_loss=0.03,
-                 # [MIGLIORAMENTO #3] Tasso di degradazione annuale dei moduli PV: riduzione progressiva
-                 # delle prestazioni dovuta a LID, PID, microcracks, ingiallimento EVA
-                 # (tipicamente 0.4-0.7%/anno per Si cristallino, fonte: NREL)
-                 annual_degradation=0.005):
+                 soiling_loss=0.03):
 
         """
         PvPanels determines the electrical performance of a photovoltaic array.
@@ -77,7 +73,6 @@ class PvPanels(System):
         :param mismatch_loss: float --> fractional power loss due to module mismatch (0-1, typical 0.01-0.02)
         :param wiring_loss: float --> fractional power loss in DC/AC wiring (0-1, typical 0.01-0.02)
         :param soiling_loss: float --> fractional power loss due to soiling/dirt (0-1, typical 0.02-0.05)
-        :param annual_degradation: float --> annual power degradation rate (0-1, typical 0.004-0.007 for c-Si)
         """
 
         # [FIX #5] Validazione dei parametri elettrici del modulo PV.
@@ -103,8 +98,6 @@ class PvPanels(System):
             raise ValueError(f"PV '{id}': wiring_loss must be in [0, 1), got {wiring_loss}")
         if not 0 <= soiling_loss < 1:
             raise ValueError(f"PV '{id}': soiling_loss must be in [0, 1), got {soiling_loss}")
-        if not 0 <= annual_degradation < 1:
-            raise ValueError(f"PV '{id}': annual_degradation must be in [0, 1), got {annual_degradation}")
         if eg <= 0:
             raise ValueError(f"PV '{id}': bandgap energy (eg) must be > 0, got {eg}")
 
@@ -126,7 +119,7 @@ class PvPanels(System):
         self.cap=self.cap_module*n_series*n_parallel
         self.opex=self.cap_module*n_series*n_parallel
 
-        super().__init__(id=id, carriers=carriers, cap=self.cap, opex=self.opex,cap_cost=cap_cost,  opex_cost=opex_cost,
+        super().__init__(id=id, carriers=carriers, cap=self.cap, opex=self.opex, cap_cost=cap_cost, opex_cost=opex_cost,
                          inc_year=inc_year, inc_start_end=inc_start_end, tax_year=tax_year,
                          other_cost=other_cost,
                          other_rev=other_rev)
@@ -156,10 +149,6 @@ class PvPanels(System):
                               * (1 - self.mismatch_loss)
                               * (1 - self.wiring_loss)
                               * (1 - self.soiling_loss))
-
-        # [MIGLIORAMENTO #3] Tasso di degradazione annuale dei moduli
-        # La produzione dell'anno n sarà: P_anno1 * (1 - annual_degradation)^(n-1)
-        self.annual_degradation = annual_degradation
 
         # [MIGLIORAMENTO #6] Coefficienti del modello termico di Faiman (2008)
         # T_cell = T_amb + I_total / (U0 + U1 * wind_speed)

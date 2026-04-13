@@ -249,7 +249,6 @@ def build_components(config_data, demand_df, time_step_hours, cache_dir=None):
                 't_cell_noct_c', 't_cell_ref_c', 'I_tot_ref',
                 'area', 'mode_mppt', 'eg',
                 'dc_ac_efficiency', 'mismatch_loss', 'wiring_loss', 'soiling_loss',
-                'annual_degradation',
             ]
             for param in optional_pv_tech_params:
                 if param in tech:
@@ -289,15 +288,10 @@ def build_components(config_data, demand_df, time_step_hours, cache_dir=None):
             bess_params = {
                 'id': tech["id"],
                 'carriers': ["electricity"],
-                'cap_module': tech["cap_module"],
-                'v': tech["v"],
-                'i_max': tech["i_max"],
-                'i_min': tech["i_min"],
+                'cap': tech["cap"],
                 'soc_in': tech["soc_in"],
                 'soc_max': tech["soc_max"],
                 'soc_min': tech["soc_min"],
-                'n_series': tech["n_series"],
-                'n_parallel': tech["n_parallel"],
                 'cap_cost': econ["cap_cost"],
                 'opex_cost': econ["opex_cost"],
                 'inc_year': econ["inc_year"],
@@ -308,9 +302,10 @@ def build_components(config_data, demand_df, time_step_hours, cache_dir=None):
             }
 
             optional_bess_tech_params = [
-                'eta_charge', 'eta_discharge', 'v_min',
-                'self_discharge_rate_per_hour', 'c_rate_max',
-                'annual_capacity_fade', 'lifetime_years', 'min_energy_threshold',
+                'c_rate',
+                'eta_charge', 'eta_discharge',
+                'self_discharge_rate_per_hour',
+                'lifetime_years',
             ]
             for param in optional_bess_tech_params:
                 if param in tech:
@@ -447,11 +442,8 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
                 ep = rec_obj.en_perf_evolution[carrier]
                 carrier_costs = econ['carriers_and_costs'][carrier]
 
-                # Energia acquistata e autoconsumata direttamente dalla REC:
-                # calcolata solo sul carico proprio della REC (rec_users).
-                # Se la REC non ha carichi propri, entrambi sono 0.
-                purchased = float(np.sum(ep["purchased_rec"])) / 1000 * time_step
-                self_cons_mwh = float(np.sum(ep["self_cons_rec"])) / 1000 * time_step
+                purchased = 0
+                self_cons_mwh = 0
 
                 # [FIX #1] Supporto profili prezzi orari per REC
                 if 'price_sold_profile' in carrier_costs:
@@ -465,11 +457,7 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
 
                 if 'price_buy_profile' in carrier_costs:
                     price_buy_profile = np.array(carrier_costs['price_buy_profile'])
-                    if self_cons_mwh > 0:
-                        buy_revenue = float(np.sum(ep["self_cons_rec"] * price_buy_profile)) * time_step / 1000
-                        avg_price_buy = buy_revenue / self_cons_mwh
-                    else:
-                        avg_price_buy = float(np.mean(price_buy_profile))
+                    avg_price_buy = float(np.mean(price_buy_profile))
                 else:
                     avg_price_buy = carrier_costs['price_buy']
 

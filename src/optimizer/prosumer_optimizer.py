@@ -12,7 +12,7 @@ Two objective modes are available:
 
 Decision variables:
     X[0] = n_parallel_pv   (number of PV strings in parallel; n_series_pv is fixed)
-    X[1] = n_parallel_bess (number of BESS modules in parallel; n_series_bess is fixed)
+    X[1] = n_parallel_bess (number of BESS units in parallel)
 
 Constraints:
     g1: production / demand <= max_prod_dem_ratio
@@ -82,26 +82,19 @@ DEFAULT_PV_MODULE = {
     'mismatch_loss': 0.02,
     'wiring_loss': 0.015,
     'soiling_loss': 0.03,
-    'annual_degradation': 0.005,
 }
 
-# Default BESS parameters (Li-ion, 2.56 kWh module)
+# Default BESS parameters (Li-ion, 2.56 kWh unit)
 DEFAULT_BESS_TECH = {
-    'cap_module': 2.560,
-    'v': 25.6,
-    'i_max': 100,
-    'i_min': 5,
+    'cap_unit': 2.560,        # kWh per unit (used for sizing granularity)
+    'c_rate': 1.0,
     'soc_in': 0.2,
     'soc_max': 0.8,
     'soc_min': 0.2,
     'eta_charge': 0.95,
     'eta_discharge': 0.95,
-    'v_min': 20.0,
     'self_discharge_rate_per_hour': 0.00004,
-    'c_rate_max': 1.0,
-    'annual_capacity_fade': 0.02,
     'lifetime_years': 15,
-    'min_energy_threshold': 0.01,
 }
 
 DEFAULT_PV_ECONOMICS = {
@@ -161,10 +154,9 @@ class _SystemProxy:
 class _BessProxy(_SystemProxy):
     """Extends _SystemProxy with BESS replacement attributes."""
 
-    def __init__(self, lifetime_years, annual_capacity_fade, **kwargs):
+    def __init__(self, lifetime_years, **kwargs):
         super().__init__(**kwargs)
         self.lifetime_years = lifetime_years
-        self.annual_capacity_fade = annual_capacity_fade
 
 
 # ---------------------------------------------------------------------------
@@ -194,8 +186,6 @@ class ProsumerOptimizer:
         Override DEFAULT_BESS_TECH entries.
     bess_economics : dict, optional
         Override DEFAULT_BESS_ECONOMICS entries.
-    n_series_bess : int
-        Fixed number of BESS modules in series.
     space_max : float
         Maximum available surface for PV installation [m²].
     utilization_factor : float
@@ -232,7 +222,6 @@ class ProsumerOptimizer:
                  # BESS
                  bess_tech_params=None,
                  bess_economics=None,
-                 n_series_bess=1,
                  # Constraints
                  space_max=100.0,
                  utilization_factor=0.6,
@@ -276,8 +265,7 @@ class ProsumerOptimizer:
         self.area_module = self.pv_module['area']  # m²
 
         # BESS configuration
-        self.n_series_bess = n_series_bess
-        self.cap_module_bess = self.bess_tech['cap_module']
+        self.cap_unit_bess = self.bess_tech['cap_unit']
 
         # Constraints
         self.space_max = space_max
@@ -299,7 +287,7 @@ class ProsumerOptimizer:
         kWp_max = self.n_parallel_pv_max * n_series_pv * self.cap_module_pv
         self.budget_max = specific_budget * kWp_max
 
-        cap_bess_per_parallel = self.cap_module_bess * n_series_bess
+        cap_bess_per_parallel = self.cap_unit_bess
         bess_cost_per_parallel = self.bess_econ['cap_cost'] * cap_bess_per_parallel
         self.n_parallel_bess_max = max(1, int(self.budget_max / bess_cost_per_parallel))
 
@@ -350,26 +338,19 @@ class ProsumerOptimizer:
         """Create a fresh Bess object for simulation."""
         no_cost = {'item1': {'unit': 0, 'cost_unit': 0, 'dur': [0, 0]}}
         no_rev = {'item1': {'unit': 0, 'rev_unit': 0, 'dur': [0, 0]}}
+        total_cap = n_parallel * self.cap_unit_bess
         return Bess(
             id='_bess_opt',
-            n_series=self.n_series_bess,
-            n_parallel=n_parallel,
-            cap_module=self.bess_tech['cap_module'],
-            v=self.bess_tech['v'],
-            i_max=self.bess_tech['i_max'],
-            i_min=self.bess_tech['i_min'],
+            cap=total_cap,
+            c_rate=self.bess_tech.get('c_rate', 1.0),
             soc_in=self.bess_tech['soc_in'],
             soc_max=self.bess_tech['soc_max'],
             soc_min=self.bess_tech['soc_min'],
             eta_charge=self.bess_tech.get('eta_charge', 0.95),
             eta_discharge=self.bess_tech.get('eta_discharge', 0.95),
-            v_min=self.bess_tech.get('v_min'),
             self_discharge_rate_per_hour=self.bess_tech.get('self_discharge_rate_per_hour', 0.00004),
-            c_rate_max=self.bess_tech.get('c_rate_max'),
-            annual_capacity_fade=self.bess_tech.get('annual_capacity_fade', 0.02),
             lifetime_years=self.bess_tech.get('lifetime_years', 15),
-            min_energy_threshold=self.bess_tech.get('min_energy_threshold', 0.01),
-            # Economics params (needed by Bess.__init__ → System.__init__)
+            # Economics params (needed by Bess.__init__ -> System.__init__)
             cap_cost=self.bess_econ['cap_cost'],
             opex_cost=self.bess_econ['opex_cost'],
             inc_year=0, inc_start_end=[0, 0], tax_year=0,
@@ -426,7 +407,6 @@ class ProsumerOptimizer:
             tax_year=ec.get('tax_year', 0),
             other_cost=no_cost, other_rev=no_rev,
             lifetime_years=self.bess_tech.get('lifetime_years', 15),
-            annual_capacity_fade=self.bess_tech.get('annual_capacity_fade', 0.02),
         )
 
     def _evaluate_individual(self, X):

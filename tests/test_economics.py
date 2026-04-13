@@ -35,18 +35,16 @@ def _make_pv(cap_cost=1500, opex_cost=40, inc_year=0, inc_start_end=None, tax_ye
     )
 
 
-def _make_bess(cap_cost=720, lifetime=10, annual_fade=0.02,
+def _make_bess(cap_cost=720, lifetime=10,
                inc_year=0, inc_start_end=None, opex_cost=20, tax_year=0):
     if inc_start_end is None:
         inc_start_end = [0, 0]
     return Bess(
-        id='bess', cap_module=2.56, v=25.6, i_max=100, i_min=5,
+        id='bess', cap=2.56, c_rate=1.0,
         soc_in=0.5, soc_max=0.8, soc_min=0.2,
-        n_series=1, n_parallel=1,
         cap_cost=cap_cost, opex_cost=opex_cost,
         inc_year=inc_year, inc_start_end=inc_start_end, tax_year=tax_year,
         lifetime_years=lifetime,
-        annual_capacity_fade=annual_fade,
     )
 
 

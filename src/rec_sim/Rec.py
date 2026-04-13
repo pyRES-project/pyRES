@@ -160,25 +160,6 @@ class Rec:
                     self.en_perf_evolution[carrier]['unmet'] = deficit_rec
 
 
-            # Bilancio energetico del carico diretto della REC (se presente).
-            # Solo questo carico genera self_cons e purchased attribuibili alla REC.
-            if self.rec_users:
-                d_rec_own = 0
-                for user in self.rec_users:
-                    if carrier in user.dem:
-                        d_rec_own += user.en_perf_evolution[carrier]
-                d_rec_own = np.asarray(d_rec_own, dtype=float)
-                # Produzione disponibile dalla REC (impianti + eventuale BESS)
-                p_rec_available = np.asarray(p_rec, dtype=float)
-                if self.rec_bess and 'supply' in self.en_perf_evolution[carrier]:
-                    p_rec_available = p_rec_available + self.en_perf_evolution[carrier]['supply']
-                self.en_perf_evolution[carrier]['self_cons_rec'] = np.minimum(p_rec_available, d_rec_own)
-                self.en_perf_evolution[carrier]['purchased_rec'] = np.maximum(0, d_rec_own - p_rec_available)
-            else:
-                n = len(self.en_perf_evolution[carrier]['shared'])
-                self.en_perf_evolution[carrier]['self_cons_rec'] = np.zeros(n)
-                self.en_perf_evolution[carrier]['purchased_rec'] = np.zeros(n)
-
         # Compute annual values (MWh) for all timeseries in each carrier
         for carrier in self.carriers:
             ep = self.en_perf_evolution[carrier]

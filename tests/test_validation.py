@@ -91,11 +91,6 @@ class TestPvValidation:
             self._make_pv(dc_ac_efficiency=0)
 
     @pytest.mark.unit
-    def test_negative_degradation(self):
-        with pytest.raises(ValueError, match="annual_degradation"):
-            self._make_pv(annual_degradation=-0.01)
-
-    @pytest.mark.unit
     def test_bandgap_zero(self):
         with pytest.raises(ValueError, match="bandgap"):
             self._make_pv(eg=0)
@@ -113,9 +108,8 @@ class TestBessValidation:
 
     def _make_bess(self, **overrides):
         defaults = dict(
-            id='b', cap_module=2.56, v=25.6, i_max=100, i_min=5,
+            id='b', cap=2.56, c_rate=1.0,
             soc_in=0.5, soc_max=0.8, soc_min=0.2,
-            n_series=1, n_parallel=1,
             cap_cost=720, opex_cost=20,
             inc_year=0, inc_start_end=[0, 0], tax_year=0,
         )
@@ -148,34 +142,14 @@ class TestBessValidation:
             self._make_bess(eta_discharge=1.1)
 
     @pytest.mark.unit
-    def test_n_series_zero(self):
-        with pytest.raises(ValueError, match="n_series"):
-            self._make_bess(n_series=0)
+    def test_c_rate_zero(self):
+        with pytest.raises(ValueError, match="c_rate"):
+            self._make_bess(c_rate=0)
 
     @pytest.mark.unit
-    def test_negative_voltage(self):
-        with pytest.raises(ValueError, match="rated voltage"):
-            self._make_bess(v=-10)
-
-    @pytest.mark.unit
-    def test_negative_i_max(self):
-        with pytest.raises(ValueError, match="i_max"):
-            self._make_bess(i_max=-1)
-
-    @pytest.mark.unit
-    def test_negative_lifetime(self):
-        with pytest.raises(ValueError, match="lifetime_years"):
-            self._make_bess(lifetime_years=0)
-
-    @pytest.mark.unit
-    def test_capacity_fade_out_of_range(self):
-        with pytest.raises(ValueError, match="annual_capacity_fade"):
-            self._make_bess(annual_capacity_fade=1.0)
-
-    @pytest.mark.unit
-    def test_negative_crate(self):
-        with pytest.raises(ValueError, match="c_rate_max"):
-            self._make_bess(c_rate_max=-0.5)
+    def test_c_rate_negative(self):
+        with pytest.raises(ValueError, match="c_rate"):
+            self._make_bess(c_rate=-0.5)
 
     @pytest.mark.unit
     def test_valid_bess_passes(self):

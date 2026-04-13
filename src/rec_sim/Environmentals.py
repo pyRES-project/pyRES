@@ -137,17 +137,21 @@ class Environmentals:
         n_inv_repl = max(0, self.time_horizon // 10 - 1)
         gwp_inverter_repl = gwp_inverter * n_inv_repl
 
-        # BESS replacement (based on lifetime_years attribute)
-        gwp_bess_repl = 0
-        for b in bess_list:
-            lifetime = getattr(b, 'lifetime_years', 0)
-            if lifetime > 0:
+        # Component replacement (based on lifetime_years attribute)
+        gwp_repl_components = 0
+        for c in self.components:
+            lifetime = c.lifetime_years
+            if lifetime is not None and lifetime > 0:
                 n_repl = max(0, self.time_horizon // lifetime - 1)
-                gwp_bess_repl += (self.GWP_BESS_KG_CO2_PER_KWH
-                                  * b.cap * n_repl)
+                if self._is_bess(c):
+                    gwp_repl_components += (self.GWP_BESS_KG_CO2_PER_KWH
+                                           * c.cap * n_repl)
+                else:
+                    gwp_repl_components += (self.GWP_PV_KG_CO2_PER_KWP
+                                           * c.cap * n_repl)
 
         gwp_embodied = (gwp_pv_modules + gwp_bos + gwp_inverter
-                        + gwp_bess_init + gwp_inverter_repl + gwp_bess_repl)
+                        + gwp_bess_init + gwp_inverter_repl + gwp_repl_components)
         gwp_embodied_t = gwp_embodied / 1000
 
         gwp_net_t = gwp_embodied_t - co2_avoided_lifetime_t
@@ -199,7 +203,7 @@ class Environmentals:
             'gwp_pv_modules_t': gwp_pv_modules / 1000,
             'gwp_bos_t': gwp_bos / 1000,
             'gwp_inverter_t': (gwp_inverter + gwp_inverter_repl) / 1000,
-            'gwp_bess_t': (gwp_bess_init + gwp_bess_repl) / 1000,
+            'gwp_bess_t': (gwp_bess_init + gwp_repl_components) / 1000,
             'gwp_embodied_t': gwp_embodied_t,
             'gwp_net_t': gwp_net_t,
             'co2_payback_years': co2_payback_years,

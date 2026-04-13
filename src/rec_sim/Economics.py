@@ -86,10 +86,10 @@ class Economics:
         c4[0] = 0
         c5[0] = 0
 
-        # Pre-calcolo schedule sostituzione batteria
+        # Pre-calcolo schedule sostituzione componenti
         battery_replacement_schedule = {}
         for component in self.components:
-            if hasattr(component, 'lifetime_years') and hasattr(component, 'annual_capacity_fade'):
+            if component.lifetime_years is not None:
                 lifetime = component.lifetime_years
                 replacement_years = []
                 year = lifetime
@@ -102,14 +102,6 @@ class Economics:
                         'years': replacement_years,
                         'cost': replacement_cost
                     }
-
-        # Pre-calcolo fattore di degradazione BESS per ogni anno
-        bess_degradation_factors = np.ones(time_horizon + 1)
-        for component in self.components:
-            if hasattr(component, 'annual_capacity_fade') and component.annual_capacity_fade > 0:
-                for y in range(1, time_horizon + 1):
-                    factor = (1 - component.annual_capacity_fade) ** (y - 1)
-                    bess_degradation_factors[y] = min(bess_degradation_factors[y], factor)
 
         for year in range(1, time_horizon + 1):
             r1_i = 0

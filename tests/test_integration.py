@@ -48,7 +48,6 @@ def _build_pv(pv_id, n_series, n_parallel, irr):
         n_series=n_series, n_parallel=n_parallel,
         dc_ac_efficiency=0.97, mismatch_loss=0.02,
         wiring_loss=0.015, soiling_loss=0.03,
-        annual_degradation=0.005,
     )
     pv.compute_output(
         slope=30, theta=None,
@@ -59,18 +58,16 @@ def _build_pv(pv_id, n_series, n_parallel, irr):
     return pv
 
 
-def _build_bess(bess_id, cap_module=2.56, soc_in=0.2, soc_max=0.8):
+def _build_bess(bess_id, cap=2.56, soc_in=0.2, soc_max=0.8):
     """Create a BESS with realistic parameters."""
     return Bess(
-        id=bess_id, cap_module=cap_module, v=25.6, i_max=100, i_min=5,
+        id=bess_id, cap=cap, c_rate=1.0,
         soc_in=soc_in, soc_max=soc_max, soc_min=0.2,
-        n_series=1, n_parallel=1,
         cap_cost=720, opex_cost=20,
         inc_year=0, inc_start_end=[0, 0], tax_year=0,
         eta_charge=0.95, eta_discharge=0.95,
-        v_min=20.0, self_discharge_rate_per_hour=0.00004,
-        c_rate_max=1.0, annual_capacity_fade=0.02,
-        lifetime_years=15, min_energy_threshold=0.01,
+        self_discharge_rate_per_hour=0.00004,
+        lifetime_years=15,
     )
 
 
@@ -279,7 +276,7 @@ class TestNumericalStability:
         bess = _build_bess('b', soc_in=0.5)
         # Rapid alternating charge/discharge
         for power in [5.0, -5.0, 10.0, -10.0, 0.0, 3.0, -8.0]:
-            _, soc, stored, supply, _, _, _, _, _ = \
+            _, soc, stored, supply, _, _, _ = \
                 bess.energy_performance(power, TIME_STEP_15MIN)
             assert not np.isnan(soc)
             assert not np.isnan(stored)
@@ -292,9 +289,9 @@ class TestNumericalStability:
         bess = _build_bess('b', soc_in=0.5, soc_max=0.8)
         # Extreme charge
         for _ in range(100):
-            _, soc, _, _, _, _, _, _, _ = bess.energy_performance(100.0, TIME_STEP_15MIN)
+            _, soc, _, _, _, _, _ = bess.energy_performance(100.0, TIME_STEP_15MIN)
             assert soc <= bess.soc_max + 1e-10
         # Extreme discharge
         for _ in range(100):
-            _, soc, _, _, _, _, _, _, _ = bess.energy_performance(-100.0, TIME_STEP_15MIN)
+            _, soc, _, _, _, _, _ = bess.energy_performance(-100.0, TIME_STEP_15MIN)
             assert soc >= bess.soc_min - 1e-10

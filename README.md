@@ -67,7 +67,7 @@ For the complete list, please refer to requirements.txt file.
     - `controller.py`: includes operational logic for storage system.
 
 
-- `src/example_model/`: contains example simulations and configuration templates to reproduce test cases.
+- `tutorials/example_model/`: contains example simulations and configuration templates to reproduce test cases.
     - `Rec1/`:  a complete working example that demonstrates how to configure and run a simulation.
  
     - **config.py**:  Python script to generate the config.yaml file with all key parameters and paths for the simulation;read by main.py.

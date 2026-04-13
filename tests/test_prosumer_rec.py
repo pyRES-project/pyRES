@@ -143,13 +143,12 @@ class TestProsumerWithBess:
         )
         cons2 = Consumer(id='c2', dem={'electricity': np.ones(N_STEPS_DAY)})
         bess = Bess(
-            id='b', cap_module=5.0, v=50.0, i_max=200, i_min=1,
+            id='b', cap=5.0, c_rate=1.0,
             soc_in=0.5, soc_max=1.0, soc_min=0.0,
-            n_series=1, n_parallel=1,
             cap_cost=500, opex_cost=10, inc_year=0,
             inc_start_end=[0, 0], tax_year=0,
             eta_charge=1.0, eta_discharge=1.0,
-            self_discharge_rate_per_hour=0.0, min_energy_threshold=0.0,
+            self_discharge_rate_per_hour=0.0,
         )
         pros_with_bess = Prosumer(
             id='wb', carriers=['electricity'],
@@ -248,13 +247,12 @@ class TestMultiCarrierBess:
         cons = Consumer(id='c', dem={'electricity': np.ones(n) * 0.1})
         bess = Bess(
             id='b', carriers=['electricity'],
-            cap_module=5.0, v=50.0, i_max=200, i_min=1,
+            cap=5.0, c_rate=1.0,
             soc_in=0.5, soc_max=1.0, soc_min=0.0,
-            n_series=1, n_parallel=1,
             cap_cost=500, opex_cost=10, inc_year=0,
             inc_start_end=[0, 0], tax_year=0,
             eta_charge=1.0, eta_discharge=1.0,
-            self_discharge_rate_per_hour=0.0, min_energy_threshold=0.0,
+            self_discharge_rate_per_hour=0.0,
         )
         pros = Prosumer(
             id='p', carriers=['electricity'],
@@ -281,9 +279,8 @@ class TestMultiCarrierBess:
         cons = Consumer(id='c', dem={'electricity': np.ones(n) * 0.1})
         bess_heat = Bess(
             id='bh', carriers=['heat'],  # wrong carrier
-            cap_module=5.0, v=50.0, i_max=200, i_min=1,
+            cap=5.0, c_rate=1.0,
             soc_in=0.5, soc_max=1.0, soc_min=0.0,
-            n_series=1, n_parallel=1,
             cap_cost=500, opex_cost=10, inc_year=0,
             inc_start_end=[0, 0], tax_year=0,
         )
