@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from src.kernel.run import  *
 from datetime import datetime
+from IPython.display import display, HTML
 
 
 
@@ -201,6 +202,135 @@ def _plot_cashflow(ec_perf, component_id, output_dir, time_horizon):
     plt.close()
 
 
+def _render_summary(summary, output_dir='Output'):
+    """
+    Render the overall simulation summary (prosumer, REC, environmental,
+    fuel savings, CRM) as an HTML report displayed inline and saved to
+    output_dir as summary.html and summary.xlsx.
+    """
+    prosumer_rows = summary['prosumer_rows']
+    rec_rows = summary['rec_rows']
+    total_row = summary['total_row']
+    agg_ev = summary['agg_ev']
+    time_horizon = summary['time_horizon']
+
+    style = """
+<style>
+.summary-table { border-collapse: collapse; font-size: 13px; margin: 10px 0; }
+.summary-table th { background-color: #2c3e50; color: white; padding: 8px 12px; text-align: center; }
+.summary-table td { padding: 6px 12px; text-align: right; border-bottom: 1px solid #ddd; }
+.summary-table td:first-child { text-align: left; font-weight: bold; }
+.summary-table tr:hover { background-color: #f5f5f5; }
+.summary-table tr:last-child { background-color: #ecf0f1; font-weight: bold; }
+.section-title { font-size: 15px; font-weight: bold; margin-top: 16px; margin-bottom: 4px; }
+</style>
+"""
+
+    def df_to_styled_html(df, title):
+        html = f'<div class="section-title">{title}</div>'
+        html += df.to_html(index=False, classes='summary-table',
+                           float_format=lambda x: f'{x:,.1f}' if isinstance(x, float) else str(x))
+        return html
+
+    html_out = style
+    html_out += df_to_styled_html(pd.DataFrame(prosumer_rows), "Prosumer Performance Summary")
+    html_out += df_to_styled_html(pd.DataFrame(rec_rows), "REC Performance Summary")
+
+    env_cols = ['Entity', 'PV [kWp]', 'BESS [kWh]', 'CO2 avoided [tCO2/y]',
+                'GWP embodied [tCO2-eq]', 'GWP net [tCO2-eq]',
+                'CO2 payback [y]', 'Lifecycle EF [gCO2/kWh]', 'CRM total [kg]']
+    env_rows = [{c: r.get(c, '') for c in env_cols} for r in (prosumer_rows + rec_rows)]
+    env_rows.append({c: total_row.get(c, '') for c in env_cols})
+    html_out += df_to_styled_html(pd.DataFrame(env_rows), "Aggregated Environmental Performance")
+
+    fuel_rows_html = ""
+    for fs in agg_ev['fuel_savings'].values():
+        fuel_rows_html += f"""
+    <tr>
+      <td style="padding:3px 16px 3px 0;">{fs['label']}</td>
+      <td style="padding:3px 8px;"><b>{fs['annual']:,.0f} {fs['unit']}/year</b></td>
+      <td style="padding:3px 8px;">{fs['lifetime']:,.0f} {fs['unit']} over {time_horizon} years</td>
+    </tr>"""
+
+    html_out += f"""
+<div style="margin-top:20px; padding:12px 16px; background:#e8f5e9; border-left:4px solid #4caf50; border-radius:4px;">
+  <div style="font-size:14px; font-weight:bold; color:#2e7d32;">Fossil Fuel Savings (Italian grid mix)</div>
+  <table style="margin-top:8px; font-size:13px;">
+    {fuel_rows_html}
+  </table>
+</div>
+"""
+
+    crm_pv = agg_ev['crm_pv']
+    crm_bess = agg_ev['crm_bess']
+
+    crm_pv_html = ""
+    for mat, info in crm_pv.items():
+        crm_pv_html += f"""
+    <tr>
+      <td style="padding:2px 12px 2px 0;">{mat}</td>
+      <td style="padding:2px 8px; text-align:right;">{info['intensity']} {info['unit']}/kWp</td>
+      <td style="padding:2px 8px; text-align:right;"><b>{info['total_raw']:,.1f} {info['unit']}</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">{info['source']}</td>
+    </tr>"""
+    crm_bess_html = ""
+    for mat, info in crm_bess.items():
+        crm_bess_html += f"""
+    <tr>
+      <td style="padding:2px 12px 2px 0;">{mat}</td>
+      <td style="padding:2px 8px; text-align:right;">{info['intensity']} {info['unit']}/kWh</td>
+      <td style="padding:2px 8px; text-align:right;"><b>{info['total_raw']:,.1f} {info['unit']}</b></td>
+      <td style="padding:2px 8px; font-size:11px; color:#888;">{info['source']}</td>
+    </tr>"""
+
+    html_out += f"""
+<div style="margin-top:20px; padding:12px 16px; background:#e3f2fd; border-left:4px solid #1976d2; border-radius:4px;">
+  <div style="font-size:14px; font-weight:bold; color:#1565c0;">Critical Raw Materials (LCA-based estimates)</div>
+  <p style="font-size:11px; color:#666; margin:4px 0 10px 0;">
+    Cradle-to-gate material intensities from peer-reviewed LCA studies.
+    Values may vary with module/cell technology and supplier.
+    <b>Total CRM: {agg_ev['crm_total_kg']:,.1f} kg</b> (PV: {agg_ev['crm_pv_total_kg']:,.1f} kg + BESS: {agg_ev['crm_bess_total_kg']:,.1f} kg)
+  </p>
+  <div style="font-size:13px; font-weight:bold; color:#333; margin-bottom:4px;">
+    PV Systems (c-Si) &mdash; {agg_ev['total_pv_kwp']:,.1f} kWp installed
+  </div>
+  <table style="font-size:13px; margin-bottom:12px;">
+    <tr style="border-bottom:1px solid #ccc;">
+      <td style="padding:2px 12px 2px 0; font-weight:bold; color:#555;">Material</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Intensity</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Total</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Source</td>
+    </tr>
+    {crm_pv_html}
+  </table>
+  <div style="font-size:13px; font-weight:bold; color:#333; margin-bottom:4px;">
+    BESS (Li-ion NMC) &mdash; {agg_ev['total_bess_kwh']:,.1f} kWh installed
+  </div>
+  <table style="font-size:13px;">
+    <tr style="border-bottom:1px solid #ccc;">
+      <td style="padding:2px 12px 2px 0; font-weight:bold; color:#555;">Material</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Intensity</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Total</td>
+      <td style="padding:2px 8px; font-weight:bold; color:#555;">Source</td>
+    </tr>
+    {crm_bess_html}
+  </table>
+</div>
+"""
+
+    display(HTML(html_out))
+
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    with open(out / 'summary.html', 'w', encoding='utf-8') as f:
+        f.write(html_out)
+
+    with pd.ExcelWriter(out / 'summary.xlsx') as xl:
+        pd.DataFrame(prosumer_rows).to_excel(xl, sheet_name='Prosumers', index=False)
+        pd.DataFrame(rec_rows).to_excel(xl, sheet_name='RECs', index=False)
+        pd.DataFrame(env_rows).to_excel(xl, sheet_name='Environmental', index=False)
+
+
 def plot(simulation, all_components, output_dir='Output'):
     """
     Generate seasonal and monthly bar plots for prosumers and RECs,
@@ -337,3 +467,7 @@ def plot(simulation, all_components, output_dir='Output'):
         # --- Economic performance plots for REC ---
         if rec.ec_perf:
             _plot_cashflow(rec.ec_perf, rec.id, output_dir, time_horizon)
+
+    # --- Overall simulation summary ---
+    if 'summary' in simulation:
+        _render_summary(simulation['summary'], output_dir=output_dir)

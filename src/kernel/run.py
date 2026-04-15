@@ -17,6 +17,7 @@ from src.rec_sim.Prosumer import Prosumer
 from src.rec_sim.Rec import Rec
 from src.rec_sim.Bess import Bess
 from src.rec_sim.PvPanels import PvPanels
+from src.rec_sim.Environmentals import Environmentals
 import yaml
 import pvlib
 import pandas as pd
@@ -641,6 +642,63 @@ def export_results(config_data, prosumers, recs, start_date, output_dir):
 
 
 # ---------------------------------------------------------------------------
+# Summary builder
+# ---------------------------------------------------------------------------
+def build_summary(all_components, time_step, time_horizon):
+    """
+    Aggregate per-entity summaries and compute overall lifecycle indicators
+    (GWP net, CO2 payback, lifecycle EF, fuel savings, CRM) across all
+    prosumers and RECs.
+
+    :return: dict with prosumer_rows, rec_rows, total_row, agg_ev, time_horizon
+    """
+    prosumer_rows = [p.summary() for p in all_components['prosumers'].values()]
+    rec_rows = [r.summary() for r in all_components['recs'].values()]
+
+    all_entities = prosumer_rows + rec_rows
+    sum_cols = ['PV [kWp]', 'BESS [kWh]', 'CO2 avoided [tCO2/y]',
+                'GWP embodied [tCO2-eq]', 'CRM total [kg]']
+    total_row = {'Entity': 'TOTAL'}
+    for col in sum_cols:
+        total_row[col] = round(sum(r.get(col, 0) for r in all_entities), 2)
+
+    all_systems = []
+    all_bess = []
+    total_prod_kwh = 0
+    for p in all_components['prosumers'].values():
+        all_systems.extend(p.systems)
+        all_bess.extend(p.bess)
+        for carrier in p.carriers:
+            ep = p.en_perf_evolution.get(carrier, {})
+            total_prod_kwh += float(np.sum(ep.get('prod', 0))) * time_step
+    for r in all_components['recs'].values():
+        all_systems.extend(r.rec_systems)
+        all_bess.extend(r.rec_bess)
+        for carrier in r.carriers:
+            ep = r.en_perf_evolution.get(carrier, {})
+            total_prod_kwh += float(np.sum(ep.get('prod_rec', 0))) * time_step
+
+    agg_calc = Environmentals(
+        components=all_systems + all_bess,
+        annual_prod_kwh=total_prod_kwh,
+        time_horizon=time_horizon,
+    )
+    agg_ev = agg_calc.compute_environmental()
+
+    total_row['GWP net [tCO2-eq]'] = round(agg_ev['gwp_net_t'], 1)
+    total_row['CO2 payback [y]'] = round(agg_ev['co2_payback_years'], 1)
+    total_row['Lifecycle EF [gCO2/kWh]'] = round(agg_ev['lifecycle_ef'], 1)
+
+    return {
+        'prosumer_rows': prosumer_rows,
+        'rec_rows': rec_rows,
+        'total_row': total_row,
+        'agg_ev': agg_ev,
+        'time_horizon': time_horizon,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Main entry point (retrocompatible)
 # ---------------------------------------------------------------------------
 def run(file_path, output_dir, base_path=None):
@@ -676,5 +734,9 @@ def run(file_path, output_dir, base_path=None):
         'recs': recs, 'prosumers': prosumers, 'consumers': consumers,
         'systems': systems, 'bess': bess_storage
     }
+
+    simulation['summary'] = build_summary(
+        all_components, time_step, config_data['simulation']['time_horizon']
+    )
 
     return simulation, all_components, rec_result, pros_result, rec_result_ec, pros_result_ec
