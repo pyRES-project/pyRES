@@ -3,6 +3,7 @@
 3) capire come gestire l'ottimizzazione e il tutorial 
 4) ricontrollare la parte di prestazioni ambientali
 5) check finale sul tutorial
- 
+6) aggiornare il file requirements
+7) aggiornare il read me cn anche nuovo paper
 
 
