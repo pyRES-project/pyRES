@@ -102,7 +102,7 @@ class TestProsumerIntegration:
 
         # Check all expected keys exist
         expected_keys = ['prod', 'dem', 'self_cons', 'surplus', 'unmet',
-                         'stored', 'supply', 'soc',
+                         'power_from_source', 'supply', 'soc',
                          'self_cons_without_bess', 'surplus_without_bess', 'unmet_without_bess']
         for key in expected_keys:
             assert key in ep, f"Missing key: {key}"
@@ -221,7 +221,7 @@ class TestRecIntegration:
         expected_keys = ['prod', 'prod_net', 'prod_rec', 'dem', 'dem_net',
                          'shared', 'surplus_prosumers', 'selfcons_prosumers',
                          'unmet_prosumers', 'surplus', 'unmet',
-                         'stored', 'supply', 'soc']
+                         'power_from_source', 'supply', 'soc']
         for key in expected_keys:
             assert key in ep, f"Missing key: {key}"
 
@@ -274,10 +274,10 @@ class TestNumericalStability:
         bess = _build_bess('b', soc_in=0.5)
         # Rapid alternating charge/discharge
         for power in [5.0, -5.0, 10.0, -10.0, 0.0, 3.0, -8.0]:
-            _, soc, stored, supply, _, _, _ = \
+            _, soc, power_from_source, supply, _, _, _ = \
                 bess.energy_performance(power, TIME_STEP_15MIN)
             assert not np.isnan(soc)
-            assert not np.isnan(stored)
+            assert not np.isnan(power_from_source)
             assert not np.isnan(supply)
             assert 0 <= soc <= 1.0
 

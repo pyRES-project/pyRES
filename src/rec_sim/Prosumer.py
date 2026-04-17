@@ -42,13 +42,13 @@ class Prosumer:
         :return: en_perf_evolution: dict--> contains for each carrier:
             prod: DataSeries or array--> (kW) energy production
             dem:  DataSeries or array-->(kW) energy demand
-            self_cons: DataSeries or array--> (kW) self-consumption defined as the minimum between production and demand in each time step. If BESS is present, self-consumption includes the energy stored in the BESS.
-            surplus: DataSeries or array--> (kW) surplus production defined as the production exceeding the demand in each time step. If BESS is present, it takes in account the energy stored in the BESS.
+            self_cons: DataSeries or array--> (kW) self-consumption defined as the minimum between production and demand in each time step. If BESS is present, self-consumption includes the energy power_from_source in the BESS.
+            surplus: DataSeries or array--> (kW) surplus production defined as the production exceeding the demand in each time step. If BESS is present, it takes in account the energy power_from_source in the BESS.
             unmet: DataSeries or array--> (kW) defined as the demand exceeding the production in each time step. If BESS is present, it takes in account the energy supplied by the BESS.
             self_cons_without_bess: DataSeries or array--> (kW) self-consumption defined as the minimum between production and demand in each time step.
             surplus_without_bess: DataSeries or array--> (kW) surplus production defined as the production exceeding the demand in each time step.
             unmet_without_bess: DataSeries or array--> (kW) defined as the demand exceeding the production in each time step.
-            stored: DataSeries or array--> (kW) energy stored in BESS
+            power_from_source: DataSeries or array--> (kW) energy power_from_source in BESS
             supply: DataSeries or array--> (kW) energy supplied by BESS
             power: DataSeries or array--> (kW) energy exchanged with BESS
             soc: DataSeries or array --> (%) state of charge of BESS
@@ -98,13 +98,13 @@ class Prosumer:
 
                     controller = Controller(bess=carrier_bess)
 
-                    stored, supply, power, surplus, deficit, soc = controller.energy_performance(
+                    power_from_source, supply, power, surplus, deficit, soc = controller.energy_performance(
                         production=p_tot, demand=d_tot, time=time)
-                    self.en_perf_evolution[carrier]['stored'] = stored
+                    self.en_perf_evolution[carrier]['power_from_source'] = power_from_source
                     self.en_perf_evolution[carrier]['supply'] = supply
                     self.en_perf_evolution[carrier]['power'] = power
                     self.en_perf_evolution[carrier]['soc'] = soc
-                    self.en_perf_evolution[carrier]['self_cons'] = self_cons + stored
+                    self.en_perf_evolution[carrier]['self_cons'] = self_cons + power_from_source
                     self.en_perf_evolution[carrier]['surplus'] = surplus
                     self.en_perf_evolution[carrier]['unmet'] = deficit
 

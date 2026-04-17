@@ -63,32 +63,32 @@ class TestBessCharge:
         """Charging with ideal battery increases SOC."""
         soc_before = bess_ideal.soc_in
         power_in = 5.0  # kW surplus
-        _, soc, stored, supply, power, surplus, deficit = \
+        _, soc, power_from_source, supply, power, surplus, deficit = \
             bess_ideal.energy_performance(power_in, TIME_STEP_1H)
         assert soc > soc_before
-        assert stored > 0
+        assert power_from_source > 0
         assert supply == 0
         assert deficit == 0
 
     @pytest.mark.unit
     def test_charge_efficiency_loss(self, bess_default):
-        """With eta_charge < 1, less energy is stored than consumed from source."""
+        """With eta_charge < 1, less energy is power_from_source than consumed from source."""
         bess_default.soc_in = 0.3
         power_in = 1.0  # kW
-        _, soc, stored, supply, power, surplus, deficit = \
+        _, soc, power_from_source, supply, power, surplus, deficit = \
             bess_default.energy_performance(power_in, TIME_STEP_1H)
         energy_in = power_in * TIME_STEP_1H
-        energy_stored_in_battery = bess_default.cap * soc - bess_default.cap * 0.3
+        energy_power_from_source_in_battery = bess_default.cap * soc - bess_default.cap * 0.3
         # The battery should store less than what was drawn (due to eta_charge)
         # Allow for self-discharge adjustment on initial SOC
-        assert energy_stored_in_battery < energy_in or stored == pytest.approx(0.0)
+        assert energy_power_from_source_in_battery < energy_in or power_from_source == pytest.approx(0.0)
 
     @pytest.mark.unit
     def test_charge_stops_at_soc_max(self, bess_ideal):
         """Battery does not charge beyond soc_max."""
         bess_ideal.soc_in = 0.95
         power_in = 100.0  # very large surplus
-        _, soc, stored, supply, power, surplus, deficit = \
+        _, soc, power_from_source, supply, power, surplus, deficit = \
             bess_ideal.energy_performance(power_in, TIME_STEP_1H)
         assert soc <= bess_ideal.soc_max + 1e-10
         assert surplus > 0  # excess not absorbed
@@ -97,9 +97,9 @@ class TestBessCharge:
     def test_charge_already_full(self, bess_ideal):
         """No charge when SOC already at max."""
         bess_ideal.soc_in = 1.0
-        _, soc, stored, supply, power, surplus, deficit = \
+        _, soc, power_from_source, supply, power, surplus, deficit = \
             bess_ideal.energy_performance(5.0, TIME_STEP_1H)
-        assert stored == pytest.approx(0.0)
+        assert power_from_source == pytest.approx(0.0)
         assert surplus == pytest.approx(5.0)
 
 
@@ -113,11 +113,11 @@ class TestBessDischarge:
         """Discharging with ideal battery decreases SOC."""
         soc_before = bess_ideal.soc_in
         power_in = -3.0  # kW deficit
-        _, soc, stored, supply, power, surplus, deficit = \
+        _, soc, power_from_source, supply, power, surplus, deficit = \
             bess_ideal.energy_performance(power_in, TIME_STEP_1H)
         assert soc < soc_before
         assert supply > 0
-        assert stored == 0
+        assert power_from_source == 0
 
     @pytest.mark.unit
     def test_discharge_efficiency_loss(self):
@@ -131,7 +131,7 @@ class TestBessDischarge:
             self_discharge_rate_per_hour=0.0,
         )
         power_in = -2.0  # kW deficit
-        _, soc, stored, supply, power, surplus, deficit = \
+        _, soc, power_from_source, supply, power, surplus, deficit = \
             bess.energy_performance(power_in, TIME_STEP_1H)
         energy_extracted = bess.cap * 0.8 - bess.cap * soc
         energy_delivered = supply * TIME_STEP_1H
@@ -143,7 +143,7 @@ class TestBessDischarge:
         """Battery does not discharge below soc_min."""
         bess_ideal.soc_in = 0.05
         bess_ideal.soc_min = 0.0
-        _, soc, stored, supply, power, surplus, deficit = \
+        _, soc, power_from_source, supply, power, surplus, deficit = \
             bess_ideal.energy_performance(-100.0, TIME_STEP_1H)
         assert soc >= bess_ideal.soc_min - 1e-10
         assert deficit > 0
@@ -152,7 +152,7 @@ class TestBessDischarge:
     def test_discharge_already_empty(self, bess_ideal):
         """No discharge when SOC at minimum."""
         bess_ideal.soc_in = 0.0
-        _, soc, stored, supply, power, surplus, deficit = \
+        _, soc, power_from_source, supply, power, surplus, deficit = \
             bess_ideal.energy_performance(-5.0, TIME_STEP_1H)
         assert supply == pytest.approx(0.0)
         assert deficit == pytest.approx(5.0)
@@ -252,7 +252,7 @@ class TestController:
         ctrl = Controller(bess=[b1, b2])
         ctrl.energy_performance(prod, dem, TIME_STEP_1H)
         # b2 (lower SOC) should have received more energy
-        assert b2.en_perf_evolution['stored'][0] >= b1.en_perf_evolution['stored'][0]
+        assert b2.en_perf_evolution['power_from_source'][0] >= b1.en_perf_evolution['power_from_source'][0]
 
     @pytest.mark.unit
     def test_discharge_uses_highest_soc_first(self):
@@ -283,7 +283,7 @@ class TestController:
 
     @pytest.mark.unit
     def test_energy_conservation_in_controller(self):
-        """Total energy is conserved: prod = self_cons + surplus + stored."""
+        """Total energy is conserved: prod = self_cons + surplus + power_from_source."""
         b1 = Bess(
             id='b1', cap=10.0, c_rate=1.0,
             soc_in=0.5, soc_max=1.0, soc_min=0.0,
@@ -295,14 +295,14 @@ class TestController:
         prod = np.array([5.0, 0.5, 3.0, 0.0])
         dem = np.array([2.0, 2.0, 1.0, 4.0])
         ctrl = Controller(bess=[b1])
-        stored, supply, power, surplus, deficit, soc = \
+        power_from_source, supply, power, surplus, deficit, soc = \
             ctrl.energy_performance(prod, dem, TIME_STEP_1H)
 
         for i in range(len(prod)):
             self_cons = min(prod[i], dem[i])
-            # prod = self_cons + stored + surplus (when prod > dem)
+            # prod = self_cons + power_from_source + surplus (when prod > dem)
             if prod[i] >= dem[i]:
-                assert prod[i] == pytest.approx(self_cons + stored[i] + surplus[i], abs=1e-6)
+                assert prod[i] == pytest.approx(self_cons + power_from_source[i] + surplus[i], abs=1e-6)
             # dem = self_cons + supply + deficit (when dem > prod)
             else:
                 assert dem[i] == pytest.approx(self_cons + supply[i] + deficit[i], abs=1e-6)

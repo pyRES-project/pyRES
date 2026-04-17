@@ -79,7 +79,7 @@ class Bess(System):
         :return:
                 power_in --> power sent to the bess (+) charge (-) discharge (kW)
                 soc: float --> new state of charge
-                stored: float --> power stored into the battery (kW)
+                power_from_source: float --> power power_from_source into the battery (kW)
                 supply: float --> power supplied by the battery (kW)
                 power: float --> power exchange with the battery (+) charge (-) discharge (kW)
                 surplus: float --> surplus production (kW)
@@ -97,9 +97,9 @@ class Bess(System):
             available = self.cap * (self.soc_max - soc) / time
             desired = power_in * self.eta_charge
             charge_power = min(desired, available, power_max)
-            source_power = charge_power / self.eta_charge if charge_power > 0 else 0
+            source_power = charge_power / self.eta_charge
 
-            stored = source_power
+            power_from_source = source_power
             supply = 0
             surplus = power_in - source_power
             deficit = 0
@@ -112,14 +112,14 @@ class Bess(System):
             discharge_power = min(desired, available, power_max)
             delivered = discharge_power * self.eta_discharge
 
-            stored = 0
+            power_from_source = 0
             supply = delivered
             surplus = 0
             deficit = demand_power - delivered
             battery = -discharge_power * time
 
         else:  # IDLE
-            stored = supply = surplus = deficit = 0
+            power_from_source = supply = surplus = deficit = 0
             battery = 0
 
         if battery < 0:
@@ -128,7 +128,7 @@ class Bess(System):
         soc = soc + battery / self.cap
         power = battery / time if time > 0 else 0
 
-        return power_in, soc, stored, supply, power, surplus, deficit
+        return power_in, soc, power_from_source, supply, power, surplus, deficit
 
     @property
     def full_cycle_equivalents(self):

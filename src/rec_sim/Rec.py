@@ -60,13 +60,13 @@ class Rec:
         - prod_rec : DataSeries or array--> (kW) energy production from REC systems only
         - dem : DataSeries or array--> (kW) energy demand  from all consumers and prosumers
         - dem_net : DataSeries or array--> (kW) net energy demand (kW) defined as the total demand from all consumers and prosumers minus self-consumption from all prosumers.
-        - shared : DataSeries or array--> (kW)shared energy (kW) defined as the minimum between net energy production and net energy demand in each time step. If BESS is present, shared includes the energy stored in the BESS.
+        - shared : DataSeries or array--> (kW)shared energy (kW) defined as the minimum between net energy production and net energy demand in each time step. If BESS is present, shared includes the energy power_from_source in the BESS.
         - surplus_prosumer : DataSeries or array--> (kW) surplus production from all prosumers
         - selfcons_prosumer : DataSeries or array--> (kW)self-consumption from all prosumers
         - unmet_prosumers	: DataSeries or array--> (kW) deficit from all prosumers and consumers
         - surplus: DataSeries or array--> (kW) surplus production from all prosumers and REC systems
         - unmet	: DataSeries or array--> (kW) deficit from all prosumers and consumers
-        - stored : DataSeries or array--> (kW) energy stored in BESS managed by REC
+        - power_from_source : DataSeries or array--> (kW) energy power_from_source in BESS managed by REC
         - supply : DataSeries or array--> (kW) energy supplied by BESS managed by REC
         - power	: DataSeries or array--> (kW) energy exchanged with BESS managed by REC
         - soc : DataSeries or array --> (%) state of charge of BESS managed by REC
@@ -149,13 +149,13 @@ class Rec:
                 if carrier_bess:
                     controller = Controller(bess=carrier_bess)
 
-                    stored, supply, power, surplus_rec, deficit_rec, soc = controller.energy_performance(
+                    power_from_source, supply, power, surplus_rec, deficit_rec, soc = controller.energy_performance(
                         production=p_net, demand=d_net, time=time)
-                    self.en_perf_evolution[carrier]['stored'] = stored
+                    self.en_perf_evolution[carrier]['power_from_source'] = power_from_source
                     self.en_perf_evolution[carrier]['supply'] = supply
                     self.en_perf_evolution[carrier]['power'] = power
                     self.en_perf_evolution[carrier]['soc'] = soc
-                    self.en_perf_evolution[carrier]['shared'] = shared + stored
+                    self.en_perf_evolution[carrier]['shared'] = shared + power_from_source
                     self.en_perf_evolution[carrier]['surplus'] = surplus_rec
                     self.en_perf_evolution[carrier]['unmet'] = deficit_rec
 

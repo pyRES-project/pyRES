@@ -86,10 +86,10 @@ class TestProsumerNoBess:
         np.testing.assert_allclose(ep['self_cons'], expected, atol=1e-6)
 
     @pytest.mark.unit
-    def test_no_stored_no_supply(self, prosumer_no_bess):
-        """Without BESS, no stored/supply keys exist."""
+    def test_no_power_from_source_no_supply(self, prosumer_no_bess):
+        """Without BESS, no power_from_source/supply keys exist."""
         ep = prosumer_no_bess.en_perf_evolution['electricity']
-        assert 'stored' not in ep
+        assert 'power_from_source' not in ep
         assert 'supply' not in ep
 
 
@@ -161,10 +161,10 @@ class TestProsumerWithBess:
 
     @pytest.mark.unit
     def test_bess_keys_present(self, simple_prosumer):
-        """With BESS, stored/supply/soc keys are present."""
+        """With BESS, power_from_source/supply/soc keys are present."""
         simple_prosumer.energy_performance(time=TIME_STEP_15MIN)
         ep = simple_prosumer.en_perf_evolution['electricity']
-        assert 'stored' in ep
+        assert 'power_from_source' in ep
         assert 'supply' in ep
         assert 'soc' in ep
         assert 'self_cons_without_bess' in ep
@@ -174,7 +174,7 @@ class TestProsumerWithBess:
         """Energy balance: prod = self_cons + surplus (with BESS)."""
         simple_prosumer.energy_performance(time=TIME_STEP_15MIN)
         ep = simple_prosumer.en_perf_evolution['electricity']
-        # With BESS, self_cons = self_cons_without_bess + stored
+        # With BESS, self_cons = self_cons_without_bess + power_from_source
         # The balance: prod >= self_cons (production covers self-consumption)
         # and surplus >= 0, unmet >= 0
         assert np.all(ep['surplus'] >= -1e-6)
@@ -259,7 +259,7 @@ class TestMultiCarrierBess:
             systems=[pv], users=[cons], bess=[bess],
         )
         pros.energy_performance(time=TIME_STEP_15MIN)
-        assert 'stored' in pros.en_perf_evolution['electricity']
+        assert 'power_from_source' in pros.en_perf_evolution['electricity']
 
     @pytest.mark.unit
     def test_bess_inactive_for_wrong_carrier(self):
@@ -290,4 +290,4 @@ class TestMultiCarrierBess:
         )
         pros.energy_performance(time=TIME_STEP_15MIN)
         # No BESS keys because carrier doesn't match
-        assert 'stored' not in pros.en_perf_evolution['electricity']
+        assert 'power_from_source' not in pros.en_perf_evolution['electricity']
