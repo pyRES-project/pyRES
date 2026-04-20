@@ -374,9 +374,13 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
                 en_flows_and_prices=flows_and_prices
             )
 
+            annual_prod_kwh = sum(
+                pros_obj.en_perf_evolution[c]['annual'].get('prod', 0) * 1000
+                for c in tech['carriers']
+            )
             pros_obj.environmental_performance(
                 time_horizon=config_data['simulation']["time_horizon"],
-                time_step=time_step
+                annual_prod_kwh=annual_prod_kwh
             )
 
     # Build and simulate RECs
@@ -432,9 +436,13 @@ def run_simulation(config_data, systems, consumers, bess_storage, time_step):
                 en_flows_and_prices=flows_and_prices
             )
 
+            annual_prod_kwh = sum(
+                rec_obj.en_perf_evolution[c]['annual'].get('prod_rec', 0) * 1000
+                for c in tech['carriers']
+            )
             rec_obj.environmental_performance(
                 time_horizon=config_data['simulation']["time_horizon"],
-                time_step=time_step
+                annual_prod_kwh=annual_prod_kwh
             )
 
     return prosumers, recs

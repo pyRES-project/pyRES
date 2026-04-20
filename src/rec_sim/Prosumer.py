@@ -143,18 +143,13 @@ class Prosumer:
         self.ec_perf = ec_perf
         return ec_perf
 
-    def environmental_performance(self, time_horizon, time_step):
+    def environmental_performance(self, time_horizon, annual_prod_kwh):
         """
 
         :param time_horizon: int--> investment time horizon (year)
-        :param time_step: float--> 1 if hourly analysis, 0.25 if quarterly analysis
+        :param annual_prod_kwh: float--> total annual production (kWh)
         :return: env_perf: dict with CO2, GWP, fuel savings and CRM indicators
         """
-
-        annual_prod_kwh = 0
-        for carrier in self.carriers:
-            ep = self.en_perf_evolution.get(carrier, {})
-            annual_prod_kwh += float(np.sum(ep.get('prod', 0))) * time_step
 
         calculator = Environmentals(
             components=self.systems + self.bess,
