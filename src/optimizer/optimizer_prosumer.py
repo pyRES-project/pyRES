@@ -1,4 +1,8 @@
 """
+Created on April 21 08:00:00 2026
+
+@author: isabella pizzuti
+
 Multi-objective sizing optimizer for a prosumer (production system + BESS)
 using NSGA-II.
 
@@ -26,7 +30,6 @@ Constraints (g <= 0 is feasible):
     g2: self_cons / dem >= min_self_cons_ratio
     g3: CAPEX <= budget_max           (only if budget_max is provided)
 
-@author: giovanni
 """
 
 import numpy as np
@@ -49,24 +52,7 @@ from src.rec_sim.Prosumer import Prosumer
 from src.rec_sim.System import System
 
 
-DEFAULT_ECONOMICS = {
-    'tax_rate': 0.2,
-    'int_rate': 0.05,
-    'price_buy': 250,              # €/MWh
-    'price_sold': 104,             # €/MWh
-    'decay': 0.02,                 # annual fractional decay of energy prices
-    'other_capex_perc': [0],       # list passed to Prosumer.economic_performance
-}
 
-
-# ---------------------------------------------------------------------------
-# Main optimizer class
-# ---------------------------------------------------------------------------
-# The production subclass (e.g. PvPanels) is used only once, by the caller,
-# to shape the template. Inside the NSGA-II loop we instantiate the base
-# `System` class directly — its __init__ is cheap — and attach the scaled
-# production curve to `en_perf_evolution` so `Prosumer.energy_performance`
-# can consume it like any real production component.
 class ProsumerOptimizer:
     """Multi-objective sizing optimizer for a prosumer."""
 
@@ -76,7 +62,7 @@ class ProsumerOptimizer:
                  economics,
                  time_step, time_horizon,
                  mode='system_and_bess',
-                 objective_mode='self_consumption',
+                 objective_function='self_consumption',
                  n_system_max=None,
                  n_bess_max=None,
                  budget_max=None,
@@ -86,45 +72,48 @@ class ProsumerOptimizer:
                  n_gen=50,
                  seed=42):
         """
-        Parameters
-        ----------
-        system : System-like
-            Production system (e.g. PvPanels) representing ONE unit. Its
-            `cap` and economic attributes are used as the unit template;
-            the optimizer scales capacity by integer n_parallel.
-        bess : Bess
-            Battery representing ONE unit. Same convention as `system`.
-        demand : array-like
-            Load profile in kW.
-        prod_per_kwp : array-like
-            Production profile normalized to 1 kWp of installed system [kW/kWp],
-            same length and time step as `demand`.
-        economics : dict
-            Prosumer economics: keys `tax_rate`, `int_rate`, `price_buy`,
-            `price_sold`, `decay`, optional `other_capex_perc`.
-        time_step : float
-            Time step in hours (e.g. 0.25 for 15 min).
-        time_horizon : int
-            Investment horizon in years.
-        mode : {'system_and_bess', 'bess_only'}
-            Selects the set of decision variables.
-        objective_mode : {'self_consumption', 'self_sufficiency'}
-            Alternative first objective.
-        n_system_max : int, optional
-            Max integer multiple of the system template. Required in
-            'system_and_bess' mode.
-        n_bess_max : int, optional
-            Max integer multiple of the BESS template. Required.
-        budget_max : float, optional
-            Hard upper bound on CAPEX [€]. If None the budget constraint is dropped.
-        min_self_cons_ratio, max_prod_dem_ratio : float
-            KPI-based feasibility constraints.
+        ProsumerOptimizer determines the optimal sizing of a prosumer (production system + BESS)
+        through a multi-objective genetic algorithm (NSGA-II from pymoo).
+        The caller provides a System-like production object and a Bess object as *unit templates*
+        (attributes cap, cap_cost_unit, economics, etc. describe ONE unit), a normalized production
+        curve [kW/kWp], a demand curve [kW] and a dictionary of economic parameters.
+        The optimizer scales the templates by integer multiples and evaluates each candidate by
+        building a Prosumer, running its energy and economic performance methods and collecting
+        the objectives.
+
+        Two objectives are minimised internally (NSGA-II convention):
+            f1 = -self_consumption [MWh/y]   if objective_function='self_consumption'
+                 -self_sufficiency [-]       if objective_function='self_sufficiency'
+            f2 = -NPV [EUR]                  incremental w.r.t. the "all-from-grid" baseline
+
+        Feasibility constraints (g <= 0 is feasible):
+            g1: prod / dem <= max_prod_dem_ratio
+            g2: self_cons / dem >= min_self_cons_ratio
+            g3: CAPEX <= budget_max          (only if budget_max is provided)
+
+        :param system: System-like --> production system (e.g. PvPanels) representing ONE unit. Its cap and economic attributes are used as the unit template; the optimizer scales capacity by integer n_parallel.
+        :param bess: Bess --> battery representing ONE unit. Same convention as system.
+        :param demand: array-like --> (kW) load profile of the prosumer.
+        :param prod_per_kwp: array-like --> (kW/kWp) production profile normalized to 1 kWp of installed system. Same length and time step as demand.
+        :param economics: dict --> prosumer economics with keys tax_rate (-), int_rate (-), price_buy (€/MWh), price_sold (€/MWh), decay (-) and optional other_capex_perc (list).
+        :param time_step: float --> (h) time step (e.g. 0.25 for 15-min resolution).
+        :param time_horizon: int --> (year) investment horizon used to compute the NPV.
+        :param mode: str --> {'system_and_bess', 'bess_only'}. Selects the set of decision variables. In 'system_and_bess' both PV size and BESS size are optimised; in 'bess_only' PV is fixed at the template size.
+        :param objective_function: str --> {'self_consumption', 'self_sufficiency'}. First objective function maximised vs NPV.
+        :param n_system_max: int --> maximum integer multiple of the system template. Required in 'system_and_bess' mode.
+        :param n_bess_max: int --> maximum integer multiple of the BESS template (required).
+        :param budget_max: float --> (€) hard upper bound on CAPEX. If None the budget constraint is dropped.
+        :param min_self_cons_ratio: float --> (0-1) minimum self_cons/dem ratio required for a candidate to be feasible.
+        :param max_prod_dem_ratio: float --> (-) maximum prod/dem ratio allowed for a candidate to be feasible.
+        :param pop_size: int --> NSGA-II population size (number of individuals per generation).
+        :param n_gen: int --> NSGA-II maximum number of generations (early stopping may halt earlier).
+        :param seed: int --> random seed for reproducibility of the NSGA-II run.
         """
         if mode not in ('system_and_bess', 'bess_only'):
             raise ValueError(f"mode must be 'system_and_bess' or 'bess_only', got '{mode}'")
-        if objective_mode not in ('self_consumption', 'self_sufficiency'):
+        if objective_function not in ('self_consumption', 'self_sufficiency'):
             raise ValueError(f"objective_mode must be 'self_consumption' or 'self_sufficiency', "
-                             f"got '{objective_mode}'")
+                             f"got '{objective_function}'")
         if mode == 'system_and_bess' and n_system_max is None:
             raise ValueError("n_system_max is required in 'system_and_bess' mode")
         if n_bess_max is None:
@@ -134,11 +123,11 @@ class ProsumerOptimizer:
         self.bess_template = bess
         self.demand = np.asarray(demand, dtype=float)
         self.prod_per_kwp = np.asarray(prod_per_kwp, dtype=float)
-        self.economics = {**DEFAULT_ECONOMICS, **economics}
+        self.economics = economics
         self.time_step = time_step
         self.time_horizon = time_horizon
         self.mode = mode
-        self.objective_functions = objective_mode
+        self.objective_functions = objective_function
 
         self.n_system_max = int(n_system_max) if n_system_max is not None else None
         self.n_bess_max = int(n_bess_max)

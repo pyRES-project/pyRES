@@ -19,20 +19,10 @@ class PvPanels(System):
                  t_cell_ref_c=25, I_tot_ref=1000,
                  vmppt_ref=40.6, imppt_ref=9.86, mu_isc_ref=0.02,
                  mu_voc_ref=0.26, ser_cell=60, t_cell_noct_c=42, area=2.07, n_series=1, n_parallel=1,
-                 # [MIGLIORAMENTO #9] Bandgap configurabile: permette di simulare diverse tecnologie PV
-                 # (Si cristallino=1.12 eV, CdTe=1.45 eV, GaAs=1.35 eV, perovskite~1.55 eV)
                  eg=1.12,
-                 # [MIGLIORAMENTO #7] Efficienza inverter DC/AC: modella la conversione da corrente continua
-                 # ad alternata. Valore tipico 0.96-0.98 per inverter commerciali
                  dc_ac_efficiency=0.97,
-                 # [MIGLIORAMENTO #7] Perdite per mismatch tra moduli: differenze di corrente/tensione
-                 # tra moduli in serie/parallelo dovute a tolleranze produttive (tipicamente 1-2%)
                  mismatch_loss=0.02,
-                 # [MIGLIORAMENTO #7] Perdite per cablaggio DC e AC: resistenza ohmica nei cavi
-                 # di collegamento tra moduli, stringhe e inverter (tipicamente 1-2%)
                  wiring_loss=0.015,
-                 # [MIGLIORAMENTO #7] Perdite per soiling (sporcizia): accumulo di polvere, polline,
-                 # escrementi di uccelli sulla superficie dei moduli (tipicamente 2-5% annuo)
                  soiling_loss=0.03):
 
         """
@@ -68,16 +58,13 @@ class PvPanels(System):
         :param area: int --> (m^2) module area
         :param n_series: int --> number of modules in series
         :param n_parallel: int --> number of modules in parallel
-        :param eg: float --> (eV) material bandgap energy (1.12 eV for Si, 1.35 eV for GaAs, 1.45 eV for CdTe)
+        :param eg: float --> (eV) material bandgap energy (1.12 eV for Si, 1.35 eV for GaAs, 1.45 eV for CdTe, 1.35 eV for GaAs,1.55 eV for perovskite~)
         :param dc_ac_efficiency: float --> inverter DC-to-AC conversion efficiency (0-1, typical 0.96-0.98)
         :param mismatch_loss: float --> fractional power loss due to module mismatch (0-1, typical 0.01-0.02)
         :param wiring_loss: float --> fractional power loss in DC/AC wiring (0-1, typical 0.01-0.02)
         :param soiling_loss: float --> fractional power loss due to soiling/dirt (0-1, typical 0.02-0.05)
         """
 
-        # [FIX #5] Validazione dei parametri elettrici del modulo PV.
-        # Questi vincoli prevengono errori di configurazione che causerebbero
-        # divisioni per zero o logaritmi di numeri negativi nel calcolo di Rs.
         if n_series <= 0 or n_parallel <= 0:
             raise ValueError(f"PV '{id}': n_series and n_parallel must be > 0, got {n_series}, {n_parallel}")
         if imppt_ref >= isc_ref:
@@ -129,33 +116,24 @@ class PvPanels(System):
         self.t_amb_noct = 293.15  # ambient temperature at NOCT [K]
         self.I_tot_noct = 800  # irradiance at NOCT [W/m^2]
         self.ta_normal = 0.95  # transimittance-absorptance product of the cover at normal incidence
+        self.eg = eg #allows to model different type of PV panels
 
-        # [MIGLIORAMENTO #9] Bandgap configurabile anziché hardcoded a 1.12 eV
-        # Permette di modellare tecnologie diverse dal silicio cristallino
-        self.eg = eg
 
-        # [MIGLIORAMENTO #7] Parametri di perdita di sistema configurabili
-        # Questi fattori erano completamente assenti nel modello originale,
-        # che calcolava la potenza DC al MPP senza alcuna perdita
-        self.dc_ac_efficiency = dc_ac_efficiency      # efficienza inverter
-        self.mismatch_loss = mismatch_loss            # perdite mismatch
-        self.wiring_loss = wiring_loss                # perdite cablaggio
-        self.soiling_loss = soiling_loss              # perdite sporcizia
-
-        # [MIGLIORAMENTO #7] Fattore di derate complessivo del sistema: combina tutte le perdite
-        # in un singolo coefficiente moltiplicativo applicato alla potenza DC
-        # derate = eta_inv * (1 - mismatch) * (1 - wiring) * (1 - soiling)
+        self.dc_ac_efficiency = dc_ac_efficiency      # inverter efficiency
+        self.mismatch_loss = mismatch_loss            # mismatch losses
+        self.wiring_loss = wiring_loss                # cable losses
+        self.soiling_loss = soiling_loss              # soiling losses
         self.system_derate = (self.dc_ac_efficiency
                               * (1 - self.mismatch_loss)
                               * (1 - self.wiring_loss)
                               * (1 - self.soiling_loss))
 
-        # [MIGLIORAMENTO #6] Coefficienti del modello termico di Faiman (2008)
+        #Coefficients of the Faiman (2008) thermal model
         # T_cell = T_amb + I_total / (U0 + U1 * wind_speed)
-        # U0: coefficiente di perdita termica costante [W/(m^2*K)]
-        # U1: coefficiente di perdita termica convettiva [W*s/(m^3*K)]
-        # Valori di default per moduli in vetro/backsheet su rack aperto (Koehl et al., 2011)
-        self.faiman_u0 = 25.0   # [W/(m^2*K)]
+        # U0: constant thermal loss coefficient [W/(m^2*K)]
+        # U1: convective thermal loss coefficient [W*s/(m^3*K)]
+        # Default values for glass/backsheet modules on open-rack mounting (Koehl et al., 2011)
+        self.faiman_u0 = 25.0   # [W/(m^2*K)] (Koehl et al., 2011)
         self.faiman_u1 = 6.84   # [W*s/(m^3*K)]
 
         # compute reference efficiency and thermal loss coefficient of the array
@@ -252,8 +230,7 @@ class PvPanels(System):
             I_total: DataSeries or array --> (W/m^2)
         """
 
-        # [MIGLIORAMENTO #8] Vettorizzazione: conversione a numpy array per operazioni vettoriali
-        # invece di loop Python elemento per elemento
+
         I_beam = np.asarray(I_beam, dtype=float)
         I_skydiff = np.asarray(I_skydiff, dtype=float)
         I_grounddiff = np.asarray(I_grounddiff, dtype=float)

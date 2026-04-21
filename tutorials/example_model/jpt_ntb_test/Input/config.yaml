@@ -428,11 +428,11 @@ bess:
       tax_year: 10
       other_cost:
         item1:
-          unit: 10.24
-          cost_unit: 450
+          unit: 0
+          cost_unit: 0
           dur:
-          - 10
-          - 10
+          - 0
+          - 0
       other_rev:
         item1:
           unit: 0
@@ -462,11 +462,11 @@ bess:
       tax_year: 10
       other_cost:
         item1:
-          unit: 10.24
-          cost_unit: 450
+          unit: 0
+          cost_unit: 0
           dur:
-          - 10
-          - 10
+          - 0
+          - 0
       other_rev:
         item1:
           unit: 0
@@ -496,11 +496,11 @@ bess:
       tax_year: 10
       other_cost:
         item1:
-          unit: 10.24
-          cost_unit: 450
+          unit: 0
+          cost_unit: 0
           dur:
-          - 10
-          - 10
+          - 0
+          - 0
       other_rev:
         item1:
           unit: 0
