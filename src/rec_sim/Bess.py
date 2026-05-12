@@ -3,7 +3,6 @@ Created on June 5 08:00:00 2025
 
 @author: isabella pizzuti
 """
-
 from src.rec_sim.System import System
 
 class Bess(System):

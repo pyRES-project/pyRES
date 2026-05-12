@@ -80,195 +80,10 @@ users:
       electricity:
         column: user14
   user15:
-    id: '15'
-    carriers:
-      electricity:
-        column: user15
-  user16:
-    id: '16'
-    carriers:
-      electricity:
-        column: user16
-  user17:
-    id: '17'
-    carriers:
-      electricity:
-        column: user17
-  user18:
-    id: '18'
-    carriers:
-      electricity:
-        column: user18
-  user19:
-    id: '19'
-    carriers:
-      electricity:
-        column: user19
-  user20:
-    id: '20'
-    carriers:
-      electricity:
-        column: user20
-  user21:
-    id: '21'
-    carriers:
-      electricity:
-        column: user21
-  user22:
-    id: '22'
-    carriers:
-      electricity:
-        column: user22
-  user23:
-    id: '23'
-    carriers:
-      electricity:
-        column: user23
-  user24:
-    id: '24'
-    carriers:
-      electricity:
-        column: user24
-  user25:
-    id: '25'
-    carriers:
-      electricity:
-        column: user25
-  user26:
-    id: '26'
-    carriers:
-      electricity:
-        column: user26
-  user27:
-    id: '27'
-    carriers:
-      electricity:
-        column: user27
-  user28:
-    id: '28'
-    carriers:
-      electricity:
-        column: user28
-  user29:
-    id: '29'
-    carriers:
-      electricity:
-        column: user29
-  user30:
-    id: '30'
-    carriers:
-      electricity:
-        column: user30
-  user31:
-    id: '31'
-    carriers:
-      electricity:
-        column: user31
-  user32:
-    id: '32'
-    carriers:
-      electricity:
-        column: user32
-  user33:
-    id: '33'
-    carriers:
-      electricity:
-        column: user33
-  user34:
-    id: '34'
-    carriers:
-      electricity:
-        column: user34
-  user35:
-    id: '35'
-    carriers:
-      electricity:
-        column: user35
-  user36:
-    id: '36'
-    carriers:
-      electricity:
-        column: user36
-  user37:
-    id: '37'
-    carriers:
-      electricity:
-        column: user37
-  user38:
-    id: '38'
-    carriers:
-      electricity:
-        column: user38
-  user39:
-    id: '39'
-    carriers:
-      electricity:
-        column: user39
-  user40:
-    id: '40'
-    carriers:
-      electricity:
-        column: user40
-  user41:
-    id: '41'
-    carriers:
-      electricity:
-        column: user41
-  user42:
-    id: '42'
-    carriers:
-      electricity:
-        column: user42
-  user43:
-    id: '43'
-    carriers:
-      electricity:
-        column: user43
-  user44:
-    id: '44'
-    carriers:
-      electricity:
-        column: user44
-  user45:
-    id: '45'
-    carriers:
-      electricity:
-        column: user45
-  user46:
-    id: '46'
-    carriers:
-      electricity:
-        column: user46
-  user47:
-    id: '47'
-    carriers:
-      electricity:
-        column: user47
-  user48:
-    id: '48'
-    carriers:
-      electricity:
-        column: user48
-  user49:
-    id: '49'
-    carriers:
-      electricity:
-        column: user49
-  user50:
-    id: '50'
-    carriers:
-      electricity:
-        column: user50
-  user51:
-    id: '51'
-    carriers:
-      electricity:
-        column: user51
-  user_rec:
     id: rec_load
     carriers:
       electricity:
-        column: user2
+        column: user15
 systems:
 - pv1:
     tech:
@@ -317,7 +132,7 @@ systems:
           - 0
   pv2:
     tech:
-      id: pv1
+      id: pv2
       lat: 41.891159
       lon: 12.492059
       n_series: 13
@@ -362,7 +177,97 @@ systems:
           - 0
   pv3:
     tech:
-      id: pv1
+      id: pv3
+      lat: 41.893483
+      lon: 12.492477
+      n_series: 11
+      n_parallel: 11
+      tilt: 30
+      azimuth: 0
+      isc_ref: 10.47
+      voc_ref: 49.3
+      vmppt_ref: 40.6
+      imppt_ref: 9.86
+      mu_isc_ref: 0.02
+      mu_voc_ref: 0.26
+      ser_cell: 60
+      t_cell_noct_c: 42
+      area: 2.07
+      eg: 1.12
+      dc_ac_efficiency: 0.97
+      mismatch_loss: 0.02
+      wiring_loss: 0.015
+      soiling_loss: 0.03
+    economics:
+      cap_cost: 1000
+      opex_cost: 40
+      inc_year: 0
+      inc_start_end:
+      - 0
+      - 0
+      tax_year: 0
+      other_cost:
+        item1:
+          unit: 48.400000000000006
+          cost_unit: 350
+          dur:
+          - 10
+          - 10
+      other_rev:
+        item1:
+          unit: 0
+          rev_unit: 0
+          dur:
+          - 0
+          - 0
+  pv4:
+    tech:
+      id: pv4
+      lat: 41.893483
+      lon: 12.492477
+      n_series: 11
+      n_parallel: 11
+      tilt: 30
+      azimuth: 0
+      isc_ref: 10.47
+      voc_ref: 49.3
+      vmppt_ref: 40.6
+      imppt_ref: 9.86
+      mu_isc_ref: 0.02
+      mu_voc_ref: 0.26
+      ser_cell: 60
+      t_cell_noct_c: 42
+      area: 2.07
+      eg: 1.12
+      dc_ac_efficiency: 0.97
+      mismatch_loss: 0.02
+      wiring_loss: 0.015
+      soiling_loss: 0.03
+    economics:
+      cap_cost: 1000
+      opex_cost: 40
+      inc_year: 0
+      inc_start_end:
+      - 0
+      - 0
+      tax_year: 0
+      other_cost:
+        item1:
+          unit: 48.400000000000006
+          cost_unit: 350
+          dur:
+          - 10
+          - 10
+      other_rev:
+        item1:
+          unit: 0
+          rev_unit: 0
+          dur:
+          - 0
+          - 0
+  pv5:
+    tech:
+      id: pv5
       lat: 41.893483
       lon: 12.492477
       n_series: 11
@@ -476,7 +381,7 @@ bess:
           - 0
   bess3:
     tech:
-      id: bess2
+      id: bess3
       cap: 10.24
       c_rate: 1.0
       soc_in: 0.2
@@ -511,17 +416,26 @@ bess:
 prosumers:
 - prosumer1:
     tech:
-      id: prosumer1
+      id: PoloCentrale
       carriers:
       - electricity
       users:
       - user0
-      - user0
+      - user1
+      - user2
+      - user3
+      - user4
+      - user5
+      - user6
+      - user7
+      - user8
+      - user9
+      - user10
       systems:
       - pv1
-      bess:
-      - bess1
-      - bess2
+      - pv2
+      - pv3
+      bess: []
     economics:
       tax_rate: 0.2
       int_rate: 0.05
@@ -538,9 +452,29 @@ prosumers:
       carriers:
       - electricity
       users:
-      - user1
+      - user11
       systems:
-      - pv2
+      - pv4
+      bess: []
+    economics:
+      tax_rate: 0.2
+      int_rate: 0.05
+      carriers_and_costs:
+        electricity:
+          decay: 0.02
+          price_buy: 250
+          price_sold: 104
+      other_capex_perc:
+      - 0.02
+  prosumer3:
+    tech:
+      id: prosumer2
+      carriers:
+      - electricity
+      users:
+      - user12
+      systems:
+      - pv5
       bess: []
     economics:
       tax_rate: 0.2
@@ -561,63 +495,14 @@ rec:
       prosumers:
       - prosumer1
       - prosumer2
+      - prosumer3
       consumers:
-      - user2
-      - user3
-      - user4
-      - user5
-      - user6
-      - user7
-      - user8
-      - user9
-      - user10
-      - user11
-      - user12
       - user13
       - user14
       - user15
-      - user16
-      - user17
-      - user18
-      - user19
-      - user20
-      - user21
-      - user22
-      - user23
-      - user24
-      - user25
-      - user26
-      - user27
-      - user28
-      - user29
-      - user30
-      - user31
-      - user32
-      - user33
-      - user34
-      - user35
-      - user36
-      - user37
-      - user38
-      - user39
-      - user40
-      - user41
-      - user42
-      - user43
-      - user44
-      - user45
-      - user46
-      - user47
-      - user48
-      - user49
-      - user50
-      - user51
-      rec_systems:
-      - pv3
-      bess:
-      - bess3
-      rec_users:
-      - user_rec
+      rec_systems: []
+      bess: []
+      rec_users: []
     economics:
       tax_rate: 0.2
       int_rate: 0.05
